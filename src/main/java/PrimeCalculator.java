@@ -9,6 +9,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+// What is the purpose of this class?
 class BigIntegerIterator {
     private final List<String> contain = new ArrayList<>(500);
     private final List<Integer> reference = new ArrayList<>(500);
@@ -35,6 +36,7 @@ public class PrimeCalculator {
         List<BigIntegerIterator> myFiller = Stream.generate(new Supplier<BigIntegerIterator>() {
             int i = 2;
 
+            // Redundant code - could be replaced with a simple loop
             @Override
             public BigIntegerIterator get() {
                 return new BigIntegerIterator(i++);
@@ -47,7 +49,11 @@ public class PrimeCalculator {
 
         List<Integer> primeNumbersToRemove = Collections.synchronizedList(new LinkedList<>());
         CountDownLatch latch = new CountDownLatch(maxPrime);
-        ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
+//        ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
+        ExecutorService executors = Executors.newFixedThreadPool(1100);
+
+        // amount of threads had been changed due to system limitations: 3000 -> 1500 (inability to create native thread)
+        System.out.println("Executor count is " + Math.max(maxPrime / 100, 1500));
         synchronized (primeNumbersToRemove) {
             for (Integer candidate : primeNumbers) {
                 executors.submit(() -> {
@@ -72,6 +78,7 @@ public class PrimeCalculator {
     private static void isPrime(List<Integer> primeNumbers, Integer candidate) throws Exception {
         for (Integer j : primeNumbers.subList(0, candidate - 2)) {
             if (candidate % j == 0) {
+                // TODO: Change "Exception" to boolean
                 throw new Exception();
             }
         }
