@@ -53,7 +53,6 @@ public class PrimeCalculator {
         ExecutorService executors = Executors.newFixedThreadPool(1100);
 
         // amount of threads had been changed due to system limitations: 3000 -> 1500 (inability to create native thread)
-        System.out.println("Executor count is " + Math.max(maxPrime / 100, 1500));
         synchronized (primeNumbersToRemove) {
             for (Integer candidate : primeNumbers) {
                 executors.submit(() -> {

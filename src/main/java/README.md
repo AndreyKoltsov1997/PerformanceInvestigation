@@ -59,13 +59,14 @@ As a result, experiment had been run with custom JVM options in order to increas
 * Argument: 500000 (for sufficient sample size)
 * JVM options: `-XX:+UnlockDiagnosticVMOptions -XX:+PrintFlagsFinal -Xmx4000m` (otherwise Java OOM)
 * Thread liimt: amount of threads had been changed due to system limitations: 3000 -> 1500 (inability to create native thread), 
-## 1.1 CPU analysis (Code had been modified to use fixed amount of threads)
+## 1.1 CPU analysis (Code had been modified to use fixed amount of threads) - general
 
 ![img_3.png](img_3.png)
 A more simple view would be in the form of flamegraph:
 ![img_5.png](img_5.png)
 Found issues:
-* Issue 1. Insufficient
+* Issue 1. The sampling matches part of the code responsible for the removal of the available prime numbers. They're stored within `LinkedList` - an insufficient collection for such case, since each removal require traversing, which is implemented via O(N) lookup time. A more sufficient collection would be HashMap, since it provides O(1) lookup time.
+* Issue 2 & 3. Both of them are related to insufficient control of application flow. Depending on stack trace, stack depth and its type, the creation of `Exception` instance is expensive. In an environment where they're constantly created in order to control the application flow, the affection on performance (CPU, Heap and, as a result, GC) is inevitable. As an alternative, we should replace the signature to use `boolean` variable.
 
 ## 1.2 Heap analysis
 Heap usage is insufficient for such application.
