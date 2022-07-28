@@ -68,6 +68,10 @@ Found issues:
 * Issue 1. The sampling matches part of the code responsible for the removal of the available prime numbers. They're stored within `LinkedList` - an insufficient collection for such case, since each removal require traversing, which is implemented via O(N) lookup time. A more sufficient collection would be HashMap, since it provides O(1) lookup time.
 * Issue 2 & 3. Both of them are related to insufficient control of application flow. Depending on stack trace, stack depth and its type, the creation of `Exception` instance is expensive. In an environment where they're constantly created in order to control the application flow, the affection on performance (CPU, Heap and, as a result, GC) is inevitable. As an alternative, we should replace the signature to use `boolean` variable.
 
+![img_6.png](img_6.png)
+## 1.2 CPU analysis - side-effects
+
+
 ## 1.2 Heap analysis
 Heap usage is insufficient for such application.
 ![img_4.png](img_4.png)
