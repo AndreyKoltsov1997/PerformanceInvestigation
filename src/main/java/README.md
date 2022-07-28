@@ -76,7 +76,49 @@ Found issues:
 Heap usage is insufficient for such application.
 ![img_4.png](img_4.png)
 
-## 1.3 Potential deadlock
+## 1.3 Lock analysis
+### 1.3.1 Redundant synchronization
+Synchronized collections are expensive. In the original implementation, `primeNumbers` are accessed by a single thread to append it.
+Reading is done in multithreaded environment, however, since Collection is not modified, syncronization is not mandatory.
+```
+   List<Integer> primeNumbers = Collections.synchronizedList(new LinkedList<>());
 
+```
+### 1.3.2 potential deadlock
 Potential deadlock (probably thread is frozen due to GC activity and not an actual deadlock)
 ![img_1.png](img_1.png)
+
+## 1.4 RAM Analysis
+
+* Enabled Memory Snapshot capturing along with allocation profiling.
+* Significant heap space is used due to excessive allocation of objects.
+* ![img_7.png](img_7.png)
+Excessive allocation of objects could be found in:
+* BigInteger iterator. The collection could be populated without this object. The class could be removed. Not to mention the initial allocation of ArrayList size within the class - 500 might be insufficient, however, it's relatively small number for most of the machines.
+```
+        List<BigIntegerIterator> myFiller = Stream.generate(new Supplier<BigIntegerIterator>() {
+            ...
+        }).limit(maxPrime).collect(Collectors.toList());
+
+        for (BigIntegerIterator integer : myFiller) {
+            primeNumbers.add(integer.getContain());
+        }
+        ...
+        
+```
+* Exceptions. As stated in "CPU" section, that could be eliminated.
+```
+private static void isPrime(List<Integer> primeNumbers, Integer candidate) throws Exception {
+        for (Integer j : primeNumbers.subList(0, candidate - 2)) {
+            if (candidate % j == 0) {
+                throw new Exception();
+            }
+...
+            
+```
+* subList(...) method
+```
+    private static void isPrime(List<Integer> primeNumbers, Integer candidate) throws Exception {
+        for (Integer j : primeNumbers.subList(0, candidate - 2)) {
+        ...
+```

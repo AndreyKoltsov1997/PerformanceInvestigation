@@ -27,7 +27,7 @@ class BigIntegerIterator {
 public class PrimeCalculator {
     public static void main(String[] args) throws InterruptedException {
         for (Integer prime : getPrimes(Integer.parseInt(args[0]))) {
-            System.out.print(prime + "\n");
+            System.out.println(prime);
         }
     }
 
@@ -50,7 +50,7 @@ public class PrimeCalculator {
         List<Integer> primeNumbersToRemove = Collections.synchronizedList(new LinkedList<>());
         CountDownLatch latch = new CountDownLatch(maxPrime);
 //        ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
-        ExecutorService executors = Executors.newFixedThreadPool(1100);
+        ExecutorService executors = Executors.newFixedThreadPool(1200);
 
         // amount of threads had been changed due to system limitations: 3000 -> 1500 (inability to create native thread)
         synchronized (primeNumbersToRemove) {
