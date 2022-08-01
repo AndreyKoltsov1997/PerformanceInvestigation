@@ -1,3 +1,9 @@
+# Plan
+
+1. Describe issues based on CPU and Memory analysis.
+2. Create microbenchmark to simplify the comparison between the solutions.
+3. Add code changes that'd enhance the performance.
+
 # Issues
 
 1. isPrime(...) signature is insufficient. It could be replaces with boolean rather than throwing and handlng excewption.
