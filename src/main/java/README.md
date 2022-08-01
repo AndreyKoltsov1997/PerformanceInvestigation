@@ -88,6 +88,15 @@ Reading is done in multithreaded environment, however, since Collection is not m
 Potential deadlock (probably thread is frozen due to GC activity and not an actual deadlock)
 ![img_1.png](img_1.png)
 
+### 1.3.3 Excessive amount of threads
+By default, we create threadpool with 3000 threads or more. Apart from issues with JVMs running on machines with low amount of cores, 
+it leads to excessive context switching.
+```
+...
+ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
+...
+```
+
 ## 1.4 RAM Analysis
 
 * Enabled Memory Snapshot capturing along with allocation profiling.
