@@ -1,3 +1,13 @@
+// Moved to package to simplify execution
+package com.koltsa;
+
+import benchmark.jmh.CalculatorBenchmark;
+import org.openjdk.jmh.runner.Runner;
+import org.openjdk.jmh.runner.RunnerException;
+import org.openjdk.jmh.runner.options.Options;
+import org.openjdk.jmh.runner.options.OptionsBuilder;
+
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -25,13 +35,25 @@ class BigIntegerIterator {
 }
 
 public class PrimeCalculator {
-    public static void main(String[] args) throws InterruptedException {
-        for (Integer prime : getPrimes(Integer.parseInt(args[0]))) {
-            System.out.println(prime);
-        }
+    public static void main(String[] args) throws InterruptedException, IOException, RunnerException {
+
+        Options opt = new OptionsBuilder()
+                .include(CalculatorBenchmark.class.getSimpleName())
+                .forks(1)
+                .build();
+
+        new Runner(opt).run();
+
+//        CalculatorBenchmark benchmark = new CalculatorBenchmark();
+//        benchmark.init();
+        return;
+//        for (Integer prime : getPrimes(Integer.parseInt(args[0]))) {
+//            System.out.println(prime);
+//        }
     }
 
-    private static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
+    // changed 'private' to 'public' static
+    public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
         List<Integer> primeNumbers = Collections.synchronizedList(new LinkedList<>());
         List<BigIntegerIterator> myFiller = Stream.generate(new Supplier<BigIntegerIterator>() {
             int i = 2;

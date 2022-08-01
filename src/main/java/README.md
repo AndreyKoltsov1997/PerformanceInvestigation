@@ -4,15 +4,12 @@
 2. Create microbenchmark to simplify the comparison between the solutions.
 3. Add code changes that'd enhance the performance.
 
-# Issues
 
-1. isPrime(...) signature is insufficient. It could be replaces with boolean rather than throwing and handlng excewption.
-
-# Profiling
+# 1. Describe issues based on CPU and Memory analysis.
 YourTrack had been used via Intellij IDEA. The IntelliJ's run method had been excluded from profiling.
 
 
-# Experiment 1 - increase
+## 1.1 Experiment 1 - increase
 Value changed: 100 -> 100000 in order to increase amount of samples collected.
 As a result - Java OOM. Do we need to create that many threads? (certainly not)
 It's such an expensive operation.
@@ -136,4 +133,55 @@ private static void isPrime(List<Integer> primeNumbers, Integer candidate) throw
     private static void isPrime(List<Integer> primeNumbers, Integer candidate) throws Exception {
         for (Integer j : primeNumbers.subList(0, candidate - 2)) {
         ...
+```
+
+
+# 2. Create benchmark to simplify comparison between soliutions
+
+[JMH](https://github.com/openjdk/jmh) is a Java harness for building, running, and analysing nano/micro/milli/macro benchmarks written in Java and other languages targeting the JVM.
+Latest available JMH build (1.56) as of August 2022 had been taken. Source: https://mvnrepository.com/artifact/org.openjdk.jmh/jmh-core/1.35
+
+We'd include 2 dependencies: JMH core (business logic) and JMH annotation processor (simplification of execution)
+
+## 2.1 Configuration
+
+# 2.1.1 Behnchmark type
+
+JMH has the following modes of execution ([java doc](http://javadox.com/org.openjdk.jmh/jmh-core/0.8/org/openjdk/jmh/annotations/Mode.html)):
+* **Throughput** - measures the number of operations per second - number of times per second the method could be executed. Given the nature of the application (concurrent detect of numbers), that'd be better to focus on latency rather than throughput.
+* **Average time** - measures average time for a single execution. "Average" wouldn't be an efficient metric due to GC pauses. It would be much convinient to use percentiles.
+* **Sample time** - measures how long time it takes for the benchmark method to execute, including max, min time etc. A distribution of the values should be convinient for our case.
+* **Single shot time** - measures how long time a single benchmark method execution takes to run, which doesn't include JVM warm up. Given the nature of our application, a single method execution should be sufficient measurement.
+* **All** - runs all benchmark modes. This is mostly useful for internal JMH testing.
+* 
+Based on java doc for SingleShotTime:
+```
+Caveats for this mode include:
+- More warmup/measurement iterations are generally required.
+- Timers overhead might be significant if benchmarks are small; switch to SampleTime mode if that is a problem.
+
+```
+
+System.out.println (standard output) had been excluded from measurement, since the ways to provide the results may vary (serialization, send over the wire, etc.)
+
+### 2.1.2 Warmup
+When benchmarking JVM applications, warmup provides a more stable results. Once class loading is complete, all classes that're used during the bootstrap are pushed onto JVM cache, which makes them faster at runtime, while other classes are loaded on per-request basis.
+The first invokation of application (in our case - prime numbers fetcher) would be slower than the following ones. During the initial execution, additional time would be taken to lazy class loading and JIT.
+Thus, that'd be useful to cache all classes beforehand, thus they'd be instantly accessed at runtime. 
+
+# 3. Code enhancements
+1. isPrime(...) signature is insufficient. It could be replaces with boolean rather than throwing and handlng excewption.
+
+
+# 4. Issues
+
+## 1.1 Unable to start up JMG
+```
+Exception in thread "main" java.lang.RuntimeException: ERROR: Unable to find the resource: /META-INF/BenchmarkList
+```
+
+No matching benchmarks. Miss-spelled regexp?
+Use EXTRA verbose mode to debug the pattern matching.
+```aidl
+
 ```
