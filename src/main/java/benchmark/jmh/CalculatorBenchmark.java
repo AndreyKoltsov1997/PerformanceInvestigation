@@ -18,7 +18,7 @@ public class CalculatorBenchmark {
     @State(Scope.Benchmark)
     public static class ExecutionPlan {
 
-        @Param({ "100", "200", "300", "500", "1000" })
+        @Param({ "100", "1000", "10000", "100000" })
         public int iterations;
     }
 

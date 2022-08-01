@@ -37,7 +37,8 @@ Abnormal due ot amount of threads mac could handle
 % sysctl kern.num_threads
 kern.num_threads: 10240
 ```
-
+Basically ulimit controls resources available to the shell and its processes, where launchctl controls maximum resources to the system and its processes.
+Looking at ulimit statistics for the current, we could see that the current limit is 1333 threads. Unix, by design, don't restrict the amount of processes a user could spawn.,
 ```
 andreykoltsov@Andreys-MacBook-Air ~ % ulimit -a
 -t: cpu time (seconds)              unlimited
@@ -49,7 +50,65 @@ andreykoltsov@Andreys-MacBook-Air ~ % ulimit -a
 -l: locked-in-memory size (kbytes)  unlimited
 -u: processes                       1333
 -n: file descriptors                2560
+```
 
+Kernel limit is 2k, thus its max available hard limit for all users:
+```
+ sysctl -a |grep kern | grep proc
+kern.maxproc: 2000
+```
+
+To make persistent change in MacOS for kernel parameters, we could modify launch daemon:
+```
+
+$ sudo vi /Library/LaunchDaemons/com.startup.sysctl.plist
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.startup.sysctl</string>
+    <key>LaunchOnlyOnce</key>
+    <true/>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/sbin/sysctl</string>
+        <string>kern.maxproc=50000</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>
+
+```
+To apply launch daemon changes:
+```
+chown root:wheel /Library/LaunchDaemons/com.startup.sysctl.plist
+launchctl load /Library/LaunchDaemons/com.startup.sysctl.plist
+```
+
+Looking at launchctl statistics, we could see that soft limit for processes is 1.3k and hard limit is 2k
+```
+sudo launchctl limit
+        cpu         unlimited      unlimited      
+        filesize    unlimited      unlimited      
+        data        unlimited      unlimited      
+        stack       8372224        67092480       
+        core        0              unlimited      
+        rss         unlimited      unlimited      
+        memlock     unlimited      unlimited      
+        maxproc     1333           2000           
+        maxfiles    256            unlimited      
+```
+
+Let's change it: 
+```
+sudo launchctl limit maxproc 20000 100000
+
+```
+In order to have an efficient benchmarking, let's update the amount of processes that current user could spawn up to 100k.
+```
+ulimit -u 100000
 ```
 
 
@@ -168,6 +227,12 @@ System.out.println (standard output) had been excluded from measurement, since t
 When benchmarking JVM applications, warmup provides a more stable results. Once class loading is complete, all classes that're used during the bootstrap are pushed onto JVM cache, which makes them faster at runtime, while other classes are loaded on per-request basis.
 The first invokation of application (in our case - prime numbers fetcher) would be slower than the following ones. During the initial execution, additional time would be taken to lazy class loading and JIT.
 Thus, that'd be useful to cache all classes beforehand, thus they'd be instantly accessed at runtime. 
+
+
+## 2.2 Execution
+
+### 2.2.1 Original solution
+
 
 # 3. Code enhancements
 1. isPrime(...) signature is insufficient. It could be replaces with boolean rather than throwing and handlng excewption.
