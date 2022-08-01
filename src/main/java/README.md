@@ -81,11 +81,13 @@ $ sudo vi /Library/LaunchDaemons/com.startup.sysctl.plist
 </plist>
 
 ```
+
 To apply launch daemon changes:
 ```
 chown root:wheel /Library/LaunchDaemons/com.startup.sysctl.plist
 launchctl load /Library/LaunchDaemons/com.startup.sysctl.plist
 ```
+... but it didn't work on BigSur - the limit had stayed to be 2k.
 
 Looking at launchctl statistics, we could see that soft limit for processes is 1.3k and hard limit is 2k
 ```
@@ -111,7 +113,30 @@ In order to have an efficient benchmarking, let's update the amount of processes
 ulimit -u 100000
 ```
 
+MacOS could be ran in server performance mode (https://apple.stackexchange.com/questions/373035/fix-fork-resource-temporarily-unavailable-on-os-x-macos/373036#373036)
+```
+sudo nvram boot-args="serverperfmode=1 $(nvram boot-args 2>/dev/null | cut -f 2-)"
+```
+Afterwards, aount of threads finally increased:
+```
+sudo sysctl kern.num_threads
+kern.num_threads: 10240
+```
 
+Afterwards, in order to let JVM use these processes, I've increased user limit:
+```
+sudo launchctl limit maxproc 10000 10000
+```
+
+Afterwards, the change of user limit worked without any error:
+```
+sudo ulimit -u 10000
+```
+
+Since the change is only possible to make under 'root', I've re-launched Idea via `sudo`:
+```
+sudo /Applications/IntelliJ\ IDEA\ CE.app/Contents/MacOS/idea
+```
 
 As a result, experiment had been run with custom JVM options in order to increase heap size.
 
