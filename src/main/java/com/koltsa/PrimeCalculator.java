@@ -2,6 +2,7 @@
 package com.koltsa;
 
 import benchmark.jmh.CalculatorBenchmark;
+import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
@@ -38,7 +39,10 @@ public class PrimeCalculator {
     public static void main(String[] args) throws InterruptedException, IOException, RunnerException {
 
         Options opt = new OptionsBuilder()
-                .include(CalculatorBenchmark.class.getSimpleName())
+                // -- benchmark that'd be ran
+                .include(CalculatorBenchmark.class.getSimpleName() + ".runOriginalImplementation")
+                .warmupIterations(1)
+                .mode(Mode.SampleTime)
                 .forks(1)
                 .build();
 
@@ -72,7 +76,7 @@ public class PrimeCalculator {
         List<Integer> primeNumbersToRemove = Collections.synchronizedList(new LinkedList<>());
         CountDownLatch latch = new CountDownLatch(maxPrime);
 //        ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
-        ExecutorService executors = Executors.newFixedThreadPool(1200);
+        ExecutorService executors = Executors.newFixedThreadPool(maxPrime);
 
         // amount of threads had been changed due to system limitations: 3000 -> 1500 (inability to create native thread)
         synchronized (primeNumbersToRemove) {

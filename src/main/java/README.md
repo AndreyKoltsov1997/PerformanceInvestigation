@@ -84,8 +84,8 @@ $ sudo vi /Library/LaunchDaemons/com.startup.sysctl.plist
 
 To apply launch daemon changes:
 ```
-chown root:wheel /Library/LaunchDaemons/com.startup.sysctl.plist
-launchctl load /Library/LaunchDaemons/com.startup.sysctl.plist
+sudo chown root:wheel /Library/LaunchDaemons/com.startup.sysctl.plist
+sudo launchctl load /Library/LaunchDaemons/com.startup.sysctl.plist
 ```
 ... but it didn't work on BigSur - the limit had stayed to be 2k.
 
@@ -137,6 +137,8 @@ Since the change is only possible to make under 'root', I've re-launched Idea vi
 ```
 sudo /Applications/IntelliJ\ IDEA\ CE.app/Contents/MacOS/idea
 ```
+
+By default, each thread has 512kb in RAM. It could be changed using Xss.
 
 As a result, experiment had been run with custom JVM options in order to increase heap size.
 
