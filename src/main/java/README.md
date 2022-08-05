@@ -364,3 +364,76 @@ CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.9999
 CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p1.00             500  sample          30.507          ms/op
 
 ```
+
+Test with more steps -  @Param({"100", "1000", "2000"}):
+```
+CalculatorBenchmark.runEnhancedBenchmark                                                  100  sample  176391    0.283 ± 0.004  ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.00                       100  sample            0.121          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.50                       100  sample            0.236          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.90                       100  sample            0.309          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.95                       100  sample            0.516          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.99                       100  sample            0.946          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.999                      100  sample            4.940          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.9999                     100  sample           28.225          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p1.00                       100  sample           43.647          ms/op
+CalculatorBenchmark.runEnhancedBenchmark                                                 1000  sample  138966    0.360 ± 0.006  ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.00                      1000  sample            0.201          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.50                      1000  sample            0.295          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.90                      1000  sample            0.406          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.95                      1000  sample            0.598          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.99                      1000  sample            0.966          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.999                     1000  sample            7.901          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.9999                    1000  sample           37.581          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p1.00                      1000  sample           48.628          ms/op
+CalculatorBenchmark.runEnhancedBenchmark                                                 2000  sample   92922    0.538 ± 0.009  ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.00                      2000  sample            0.294          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.50                      2000  sample            0.435          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.90                      2000  sample            0.694          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.95                      2000  sample            0.837          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.99                      2000  sample            2.159          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.999                     2000  sample            9.866          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.9999                    2000  sample           24.720          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p1.00                      2000  sample          151.257          ms/op
+CalculatorBenchmark.runOriginalImplementation                                             100  sample   14349    3.483 ± 0.022  ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.00             100  sample            2.208          ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.50             100  sample            3.265          ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.90             100  sample            4.325          ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.95             100  sample            4.792          ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.99             100  sample            5.702          ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.999            100  sample           12.780          ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.9999           100  sample           27.199          ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p1.00             100  sample           28.967          ms/op
+CalculatorBenchmark.runOriginalImplementation                                            1000  sample     570   87.950 ± 1.868  ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.00            1000  sample           43.713          ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.50            1000  sample           84.935          ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.90            1000  sample          106.693          ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.95            1000  sample          110.625          ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.99            1000  sample          121.694          ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.999           1000  sample          126.747          ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.9999          1000  sample          126.747          ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p1.00            1000  sample          126.747          ms/op
+```
+
+# Thread count test
+Thread count test:
+```
+Thread count: 4041
+Thread count: 4043
+Thread count: 4045
+Thread count: 4047
+Thread count: 4049
+Thread count: 4051
+```
+
+# Issues
+## Idea - unterminated process in case native thread couldn't be created
+In case Java OOM had occurred:
+```
+Exception in thread "main" java.lang.OutOfMemoryError: unable to create new native thread
+```
+Intellij Idea seems to keep restarting the process - it keeps appearing within the system (ref.: `ps aux`)
+Perhaps it's trying to create a heap dump?
+When trying to close the IDEA, it keeps trying to deatch the process as well - it prevents it from successful termination of IDE.
+
+After clicking "terminate", it tries to terminate the app, but didn't succeed.
+Afterwards, I click "cancel" and repeat the process. Afterwards, the project is successully closed.

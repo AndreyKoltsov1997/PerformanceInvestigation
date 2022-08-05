@@ -20,7 +20,7 @@ public class CalculatorBenchmark {
     public static class CalculatorBenchmarkPlan {
 
         //        @Param({ "1000", "10000", "800000" })
-        @Param({"100", "500"})
+        @Param({"100", "1000", "2000"})
         public int iterations;
     }
 

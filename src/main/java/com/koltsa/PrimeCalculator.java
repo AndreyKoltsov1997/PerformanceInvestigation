@@ -37,7 +37,7 @@ class BigIntegerIterator {
 
 public class PrimeCalculator {
     public static void main(String[] args) throws InterruptedException, IOException, RunnerException {
-
+//        ThreadSupportTest.checkHowManyThreadsJvmCouldHave();
         Options opt = new OptionsBuilder()
                 // -- benchmark that'd be ran
                 .include(CalculatorBenchmark.class.getSimpleName() + ".*")
