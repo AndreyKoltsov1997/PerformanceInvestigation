@@ -2,10 +2,7 @@ package com.koltsa;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 public class PrimeCalculatorEnhanced {
 
@@ -16,14 +13,13 @@ public class PrimeCalculatorEnhanced {
      * @throws InterruptedException
      */
     public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
-        ExecutorService executors = Executors.newFixedThreadPool(maxPrime);
+        ExecutorService executors = Executors.newWorkStealingPool();
 
         // TODO: handle exception when native thread couldn't be created
 
         ConcurrentLinkedQueue<Integer> primeNumbersQueue = new ConcurrentLinkedQueue<>();
         // "maxprime-2" since we start from 2
         CountDownLatch latch = new CountDownLatch(maxPrime - 2);
-
         for (int i = 2; i <= maxPrime; i++) {
             // final efficiency requirement
             final int candidate = i;
