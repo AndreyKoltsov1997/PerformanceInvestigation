@@ -307,6 +307,18 @@ CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.95  
 ...
 ```
 
+## [enhanced] for-loop optimization
+In for loop:
+```
+private static boolean isPrime(int number) {
+...
+
+        for (int i = 2; i < number; i++) {
+           ...
+        }
+...
+```
+We don't need to check even numbers. Thus, instead iterating one-by-one, we could iterate one-by-two.
 # 4. Issues
 
 ## 1.1 Unable to start up JMG
@@ -394,6 +406,8 @@ CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.99            
 CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.999                     2000  sample            9.866          ms/op
 CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.9999                    2000  sample           24.720          ms/op
 CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p1.00                      2000  sample          151.257          ms/op
+
+
 CalculatorBenchmark.runOriginalImplementation                                             100  sample   14349    3.483 ± 0.022  ms/op
 CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.00             100  sample            2.208          ms/op
 CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.50             100  sample            3.265          ms/op
@@ -427,6 +441,7 @@ Thread count: 4051
 
 # Issues
 ## Idea - unterminated process in case native thread couldn't be created
+(IDEA had been launched under `sudo`)
 In case Java OOM had occurred:
 ```
 Exception in thread "main" java.lang.OutOfMemoryError: unable to create new native thread

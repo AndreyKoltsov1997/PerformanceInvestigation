@@ -38,17 +38,18 @@ class BigIntegerIterator {
 public class PrimeCalculator {
     public static void main(String[] args) throws InterruptedException, IOException, RunnerException {
 //        ThreadSupportTest.checkHowManyThreadsJvmCouldHave();
-        Options opt = new OptionsBuilder()
-                // -- benchmark that'd be ran
-                .include(CalculatorBenchmark.class.getSimpleName() + ".*")
-                .warmupIterations(1)
-                .mode(Mode.SampleTime)
-                .forks(1)
-                .build();
+//        Options opt = new OptionsBuilder()
+//                // -- benchmark that'd be ran
+//                .include(CalculatorBenchmark.class.getSimpleName() + ".*")
+//                .warmupIterations(1)
+//                .mode(Mode.SampleTime)
+//                .forks(1)
+//                .build();
+//
+//        new Runner(opt).run();
 
-        new Runner(opt).run();
-
-//        System.out.println(PrimeCalculatorEnhanced.getPrimes(Integer.parseInt(args[0])));
+        PrimeCalculatorEnhanced.getPrimes(Integer.parseInt(args[0]));
+//        System.out.println(PrimeCalculator.getPrimes(Integer.parseInt(args[0])));
 //        CalculatorBenchmark benchmark = new CalculatorBenchmark();
 //        benchmark.init();
         return;

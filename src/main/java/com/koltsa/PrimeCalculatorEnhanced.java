@@ -49,11 +49,18 @@ public class PrimeCalculatorEnhanced {
      */
     private static boolean isPrime(int number) {
         // Check number in bounds of primes and not an even
-        if ((number <= 1) || (number % 2 == 0 && number > 2)) {
-            return false;
+        if (number < 3) {
+            // prime numbers start with "2"
+            return number > 1;
         }
 
-        for (int i = 2; i < number; i++) {
+        if (number % 2 == 0) {
+            // omit even numbers, thus not include '2' into for-loop
+            return true;
+        }
+
+        // sequentially check for other numbers
+        for (int i = 3; i < number; i+= 2) {
             if (number % i == 0) {
                 return false;
             }
