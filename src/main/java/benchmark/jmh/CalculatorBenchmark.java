@@ -3,6 +3,7 @@ package benchmark.jmh;
 import com.koltsa.PrimeCalculator;
 import com.koltsa.PrimeCalculatorEnhanced;
 import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.infra.Blackhole;
 import org.openjdk.jmh.runner.Runner;
 import org.openjdk.jmh.runner.RunnerException;
 import org.openjdk.jmh.runner.options.Options;
@@ -20,7 +21,7 @@ public class CalculatorBenchmark {
     public static class CalculatorBenchmarkPlan {
 
         //        @Param({ "1000", "10000", "800000" })
-        @Param({"100", "1000", "2000"})
+        @Param({"1000", "10000", "50000"})
         public int iterations;
     }
 
@@ -29,8 +30,8 @@ public class CalculatorBenchmark {
     // ... will be executed. 'warmups' controls how many times the benchmark will be executed prior to results collection.
     @Fork(value = 1, warmups = 3)
     @BenchmarkMode(Mode.SampleTime)
-    public void runOriginalImplementation(CalculatorBenchmarkPlan plan) throws InterruptedException {
-        PrimeCalculator.getPrimes(Integer.parseInt(String.valueOf(plan.iterations)));
+    public void runOriginalImplementation(CalculatorBenchmarkPlan plan, Blackhole blackhole) throws InterruptedException {
+        blackhole.consume(PrimeCalculator.getPrimes(Integer.parseInt(String.valueOf(plan.iterations))));
     }
 
     @Benchmark
@@ -38,8 +39,8 @@ public class CalculatorBenchmark {
     // ... will be executed. 'warmups' controls how many times the benchmark will be executed prior to results collection.
     @Fork(value = 1, warmups = 3)
     @BenchmarkMode(Mode.SampleTime)
-    public void runEnhancedBenchmark(CalculatorBenchmarkPlan plan) throws InterruptedException {
-        PrimeCalculatorEnhanced.getPrimes(Integer.parseInt(String.valueOf(plan.iterations)));
+    public void runEnhancedBenchmark(CalculatorBenchmarkPlan plan, Blackhole blackhole) throws InterruptedException {
+        blackhole.consume(PrimeCalculatorEnhanced.getPrimes(Integer.parseInt(String.valueOf(plan.iterations))));
     }
 
 }
