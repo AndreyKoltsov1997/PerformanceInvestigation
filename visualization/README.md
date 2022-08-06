@@ -3,6 +3,6 @@
 
 # Execute
 ```
-python3 visualize.py sources
+python3 visualize.py -d <source directory> -p <percentile>
 ```
-Usage: visualize.py -d <source directory>
+Usage: python3 visualize.py -d <source directory> -p <percentile>
