@@ -43,10 +43,30 @@ def __get_samples(sample_size: str, percentile: str, object: list) -> list:
     return result
 
 
+
+def __get_data_as_dict(file_path) -> dict:
+    # sample size, percentile, value, group name
+    # Sample Size <-> [Objects]
+    data = defaultdict(list)
+
+    with open(file_path) as file:
+        for line in file:
+            try:
+                jmh_measurement = __get_payload_from_line(line)
+            except Exception as e:
+                print(f"Unable to parse line: {line} \n {e}")
+                continue
+            
+            if not jmh_measurement or jmh_measurement.percentile != '95th':
+                continue
+            data[jmh_measurement.sample_size].append(jmh_measurement)
+    return data
+
+
 def __print_data(file_path) -> None:
     # sample size, percentile, value, group name
     # Sample Size <-> [Objects]
-    data = dict()
+    data = defaultdict(list)
 
     with open(file_path) as file:
         for line in file:
@@ -79,6 +99,35 @@ def __print_data(file_path) -> None:
     plt.plot(sorted(x_values), y_values, marker='o', label=file_path)
 
 
+def plot_files_via_dict(datasource_path: str) -> None:
+    folder = os.fsencode(datasource_path)
+
+    plottable_data = defaultdict()
+    for file in os.listdir(folder):
+        filename_decoded = file.decode('utf-8')
+        filepath = f"{datasource_path}/{filename_decoded}"
+        plottable_data[filename_decoded] = __get_data_as_dict(filepath)
+    
+    # visualize
+    for filename, jmh_measurements in plottable_data.items():
+        x_values = list(jmh_measurements.keys())
+        y_values = list()
+
+        # 1. Sort x values
+        # 2. Get y value for each x value
+        # 3. print
+        x_values = sorted(x_values)
+        y_values = []
+        for size in x_values:
+            y_values.append(jmh_measurements[size][0].value)
+        plt.plot(sorted(x_values), y_values, marker='o', label=filename)
+
+
+    plt.xlabel('Sample size')
+    plt.ylabel('Score, ms/op')
+    plt.legend(loc='upper center')
+    plt.show()
+
 def plot_files(datasource_path: str) -> None:
     folder = os.fsencode(datasource_path)
 
@@ -106,7 +155,7 @@ def main(argv):
     # -- actions based on CLI options
     for opt, arg in opts:
         if opt == '-d':
-            plot_files(arg)
+            plot_files_via_dict(arg)
             sys.exit(0)
 
 
