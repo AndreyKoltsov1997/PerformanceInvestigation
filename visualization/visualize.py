@@ -1,6 +1,8 @@
 from collections import defaultdict
 import matplotlib.pyplot as plt
 import locale
+import os
+
 
 """
 Describes single measurement from JMH.
@@ -50,8 +52,7 @@ def __print_data(file_path) -> None:
     data = defaultdict(list)
 
     # TODO: get all files from path
-    sample_sizes = set()
-    with open('data-source.txt') as file:
+    with open(file_path) as file:
         for line in file:
 
             jmh_measurement = __get_payload_from_line('test_group', line)
@@ -80,13 +81,24 @@ def __print_data(file_path) -> None:
     y_values = []
     for size in x_values:
         y_values.append(data[size][0].value)
-    plt.plot(sorted(x_values), y_values)
+    plt.plot(sorted(x_values), y_values, marker='o', label=file_path)
 
     # Plot another line on the same chart/graph
     # plt.plot(x, z)
 
+    plt.legend(loc='upper center')
     plt.show()
 
+
+def plot_files() -> None:
+    folder = os.fsencode('sources')
+
+    for file in os.listdir(folder):
+        # for file in files:
+        print(f"file: {file}")
+        filepath = "sources/" + file.decode("utf-8")
+        __print_data(filepath)
+        
 # CalculatorBenchmark.runEnhancedBenchmark                                                 1000  sample  57295      0,872 �    0,006  ms/op
 # CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.00                      1000  sample             0,514             ms/op
 # CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.50                      1000  sample             0,825             ms/op
@@ -117,7 +129,7 @@ def __print_data(file_path) -> None:
 # CalculatorBenchmark.runOriginalImplementation
 
 def main():
-    __print_data('')
+    plot_files()
 
 if __name__ == "__main__":
     main()
