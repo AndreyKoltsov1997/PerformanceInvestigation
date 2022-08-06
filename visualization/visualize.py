@@ -56,28 +56,23 @@ def __print_data(file_path) -> None:
             if not jmh_measurement:
                 continue
             # simplified grouping
-            print(f"jmh_measurement percentile {jmh_measurement.percentile}")
-            if jmh_measurement.percentile != '95th':
-                continue
-            data[jmh_measurement.sample_size].append(jmh_measurement.value)
+            data[jmh_measurement.sample_size].append(jmh_measurement)
 
     # Plot a simple line chart
     # <sample-duration> for each percentile
     # samples should be constant for all charts, it's only durations that differ
 
     # samples = data.keys
-    samples = set()
+    x_values = set()
     y_values = list()
-    print(len(data.items()))
-    for sample, value_likst in data.items():
-        print(f"sample: {sample}")
-        samples.add(sample)
-        y_values.append(value_likst[0])
-        # test_sample = __get_samples(sample, '95th', data.get(sample))
-    s_l = list(samples)
-    print(s_l)
-    print(data[s_l[0]] + data[s_l[1]] + data[s_l[2]])
-    plt.plot(s_l, data[s_l[0]] + data[s_l[1]] + data[s_l[2]])
+    for sample_size, jmh_measurements in data.items():
+        x_values.add(sample_size)
+        for measurement in jmh_measurements:
+            # filter by percentiles here
+            if measurement.percentile == '95th':
+                y_values.append(measurement.value)
+
+    plt.plot(list(x_values), y_values)
 
     # Plot another line on the same chart/graph
     # plt.plot(x, z)
