@@ -100,24 +100,23 @@ def __print_data(file_path) -> None:
 
 
 def plot_files_via_dict(datasource_path: str) -> None:
+    """
+    1. Parses files from given folders and retrieves JMH measurements.
+    2. Plots measurements based on parsed data.
+    """
     folder = os.fsencode(datasource_path)
 
+    # -- Get data
     plottable_data = defaultdict()
     for file in os.listdir(folder):
         filename_decoded = file.decode('utf-8')
         filepath = f"{datasource_path}/{filename_decoded}"
         plottable_data[filename_decoded] = __get_data_as_dict(filepath)
     
-    # visualize
+    # -- Visualize Data
     for filename, jmh_measurements in plottable_data.items():
-        x_values = list(jmh_measurements.keys())
+        x_values = sorted(jmh_measurements.keys())
         y_values = list()
-
-        # 1. Sort x values
-        # 2. Get y value for each x value
-        # 3. print
-        x_values = sorted(x_values)
-        y_values = []
         for size in x_values:
             y_values.append(jmh_measurements[size][0].value)
         plt.plot(sorted(x_values), y_values, marker='o', label=filename)
