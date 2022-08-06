@@ -1,5 +1,6 @@
 from collections import defaultdict
 import matplotlib.pyplot as plt
+import locale
 
 """
 Describes single measurement from JMH.
@@ -7,9 +8,10 @@ Describes single measurement from JMH.
 class BenchmarkMeasurement:
     def __init__(self, group_name, sample_size, percentile, value, measurement):
         self.group_name = group_name
-        self.sample_size = sample_size
+        self.sample_size = int(sample_size)
         self.percentile = percentile
-        self.value = value
+        # value.replace
+        self.value = float(value.replace(',', ''))
         # Operations per second, operations per nanosecond, etc.
         self.measurement = measurement
 
@@ -53,7 +55,7 @@ def __print_data(file_path) -> None:
         for line in file:
 
             jmh_measurement = __get_payload_from_line('test_group', line)
-            if not jmh_measurement:
+            if not jmh_measurement or jmh_measurement.percentile != '95th':
                 continue
             # simplified grouping
             data[jmh_measurement.sample_size].append(jmh_measurement)
@@ -62,7 +64,6 @@ def __print_data(file_path) -> None:
     # <sample-duration> for each percentile
     # samples should be constant for all charts, it's only durations that differ
 
-    # samples = data.keys
     x_values = set()
     y_values = list()
     for sample_size, jmh_measurements in data.items():
@@ -72,7 +73,14 @@ def __print_data(file_path) -> None:
             if measurement.percentile == '95th':
                 y_values.append(measurement.value)
 
-    plt.plot(list(x_values), y_values)
+    # 1. Sort x values
+    # 2. Get y value for each x value
+    # 3. print
+    x_values = sorted(x_values)
+    y_values = []
+    for size in x_values:
+        y_values.append(data[size][0].value)
+    plt.plot(sorted(x_values), y_values)
 
     # Plot another line on the same chart/graph
     # plt.plot(x, z)
