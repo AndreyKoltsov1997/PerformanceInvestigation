@@ -37,8 +37,8 @@ Abnormal due ot amount of threads mac could handle
 % sysctl kern.num_threads
 kern.num_threads: 10240
 ```
-Basically ulimit controls resources available to the shell and its processes, where launchctl controls maximum resources to the system and its processes.
-Looking at ulimit statistics for the current, we could see that the current limit is 1333 threads. Unix, by design, don't restrict the amount of processes a user could spawn.,
+Basically, `ulimit` controls resources available to the shell and its processes, where launchctl controls maximum resources to the system and its processes.
+Looking at `ulimit` statistics for the current, we could see that the current limit is 1333 threads. Unix, by design, don't restrict the amount of processes a user could spawn.,
 ```
 andreykoltsov@Andreys-MacBook-Air ~ % ulimit -a
 -t: cpu time (seconds)              unlimited
@@ -58,7 +58,7 @@ Kernel limit is 2k, thus its max available hard limit for all users:
 kern.maxproc: 2000
 ```
 
-To make persistent change in MacOS for kernel parameters, we could modify launch daemon:
+To make persistent change in macOS for kernel parameters, we could modify launch daemon:
 ```
 
 $ sudo vi /Library/LaunchDaemons/com.startup.sysctl.plist
@@ -113,11 +113,11 @@ In order to have an efficient benchmarking, let's update the amount of processes
 ulimit -u 100000
 ```
 
-MacOS could be ran in server performance mode (https://apple.stackexchange.com/questions/373035/fix-fork-resource-temporarily-unavailable-on-os-x-macos/373036#373036)
+MacOS could run in server performance mode (https://apple.stackexchange.com/questions/373035/fix-fork-resource-temporarily-unavailable-on-os-x-macos/373036#373036)
 ```
 sudo nvram boot-args="serverperfmode=1 $(nvram boot-args 2>/dev/null | cut -f 2-)"
 ```
-Afterwards, aount of threads finally increased:
+Afterwards, amount of threads finally increased:
 ```
 sudo sysctl kern.num_threads
 kern.num_threads: 10240
@@ -147,7 +147,7 @@ As a result, experiment had been run with custom JVM options in order to increas
 # 1. Default implementation
 * Argument: 500000 (for sufficient sample size)
 * JVM options: `-XX:+UnlockDiagnosticVMOptions -XX:+PrintFlagsFinal -Xmx4000m` (otherwise Java OOM)
-* Thread liimt: amount of threads had been changed due to system limitations: 3000 -> 1500 (inability to create native thread), 
+* Thread limit: amount of threads had been changed due to system limitations: 3000 -> 1500 (inability to create native thread), 
 ## 1.1 CPU analysis (Code had been modified to use fixed amount of threads) - general
 
 ![img_3.png](img_3.png)
@@ -158,7 +158,7 @@ Found issues:
 * Issue 2 & 3. Both of them are related to insufficient control of application flow. Depending on stack trace, stack depth and its type, the creation of `Exception` instance is expensive. In an environment where they're constantly created in order to control the application flow, the affection on performance (CPU, Heap and, as a result, GC) is inevitable. As an alternative, we should replace the signature to use `boolean` variable.
 
 ![img_6.png](img_6.png)
-## 1.2 CPU analysis - side-effects
+## 1.2 CPU analysis - side effects
 
 
 ## 1.2 Heap analysis
@@ -168,7 +168,7 @@ Heap usage is insufficient for such application.
 ## 1.3 Lock analysis
 ### 1.3.1 Redundant synchronization
 Synchronized collections are expensive. In the original implementation, `primeNumbers` are accessed by a single thread to append it.
-Reading is done in multithreaded environment, however, since Collection is not modified, syncronization is not mandatory.
+Reading is done in multithreaded environment, however, since Collection is not modified, synchronization is not mandatory.
 ```
    List<Integer> primeNumbers = Collections.synchronizedList(new LinkedList<>());
 
@@ -178,7 +178,7 @@ Potential deadlock (probably thread is frozen due to GC activity and not an actu
 ![img_1.png](img_1.png)
 
 ### 1.3.3 Excessive amount of threads
-By default, we create threadpool with 3000 threads or more. Apart from issues with JVMs running on machines with low amount of cores, 
+By default, we create thread-pool with 3000 threads or more. Apart from issues with JVMs running on machines with low amount of cores, 
 it leads to excessive context switching.
 ```
 ...
@@ -222,7 +222,7 @@ private static void isPrime(List<Integer> primeNumbers, Integer candidate) throw
 ```
 
 
-# 2. Create benchmark to simplify comparison between soliutions
+# 2. Create benchmark to simplify comparison between solutions
 
 [JMH](https://github.com/openjdk/jmh) is a Java harness for building, running, and analysing nano/micro/milli/macro benchmarks written in Java and other languages targeting the JVM.
 Latest available JMH build (1.56) as of August 2022 had been taken. Source: https://mvnrepository.com/artifact/org.openjdk.jmh/jmh-core/1.35
@@ -231,12 +231,12 @@ We'd include 2 dependencies: JMH core (business logic) and JMH annotation proces
 
 ## 2.1 Configuration
 
-# 2.1.1 Behnchmark type
+# 2.1.1 Benchmark type
 
 JMH has the following modes of execution ([java doc](http://javadox.com/org.openjdk.jmh/jmh-core/0.8/org/openjdk/jmh/annotations/Mode.html)):
 * **Throughput** - measures the number of operations per second - number of times per second the method could be executed. Given the nature of the application (concurrent detect of numbers), that'd be better to focus on latency rather than throughput.
-* **Average time** - measures average time for a single execution. "Average" wouldn't be an efficient metric due to GC pauses. It would be much convinient to use percentiles.
-* **Sample time** - measures how long time it takes for the benchmark method to execute, including max, min time etc. A distribution of the values should be convinient for our case.
+* **Average time** - measures average time for a single execution. "Average" wouldn't be an efficient metric due to GC pauses. It would be much convenient to use percentiles.
+* **Sample time** - measures how long time it takes for the benchmark method to execute, including max, min time etc. A distribution of the values should be convenient for our case.
 * **Single shot time** - measures how long time a single benchmark method execution takes to run, which doesn't include JVM warm up. Given the nature of our application, a single method execution should be sufficient measurement.
 * **All** - runs all benchmark modes. This is mostly useful for internal JMH testing.
 * 
@@ -251,18 +251,24 @@ Caveats for this mode include:
 System.out.println (standard output) had been excluded from measurement, since the ways to provide the results may vary (serialization, send over the wire, etc.)
 
 ### 2.1.2 Warmup
-When benchmarking JVM applications, warmup provides a more stable results. Once class loading is complete, all classes that're used during the bootstrap are pushed onto JVM cache, which makes them faster at runtime, while other classes are loaded on per-request basis.
-The first invokation of application (in our case - prime numbers fetcher) would be slower than the following ones. During the initial execution, additional time would be taken to lazy class loading and JIT.
+When benchmarking JVM applications, warmup provides a more stable results. Once class loading is complete, all classes used during the bootstrap are pushed onto JVM cache, which makes them faster at runtime, while other classes are loaded on per-request basis.
+The first invocation of application (in our case - prime numbers' fetcher) would be slower than the following ones. During the initial execution, additional time would be taken to lazy class loading and JIT.
 Thus, that'd be useful to cache all classes beforehand, thus they'd be instantly accessed at runtime. 
 
+### 2.1.3 Avoiding dead code elimination by JVM
+JVM might detect that the result of the benchmarking method is not used anywhere. As a result, that'd apply optimizations.
+Consider the fact we'd want to focus on "real" use cases, that would provide insufficient results.
+JVM provides `Blackhole` object, which might be used as a consumer of the result. Therefore, we'd prevent JVM's optimization related to the unused code.
+### 2.1.4 SetUp / TearDown
+Given the nature of the original method and the fact it generates sequence of the numbers on demand, no set up or tear down actions are needed.
 
 ## 2.2 Execution
-
+JVM options: `-Xms4096m -Xmx4096m`
 ### 2.2.1 Original solution
 
 
 # 3. Code enhancements
-1. isPrime(...) signature is insufficient. It could be replaces with boolean rather than throwing and handlng excewption.
+1. isPrime(...) signature is insufficient. It could be replaced with boolean rather than throwing and handling exception.
 
 ## 3.1 Thread execution
 Regular thread pool has one queue. Each thread from the pool locks the queue, dequeue a task and remove the lock.
@@ -277,7 +283,7 @@ Considering the context of this task, we don't expect any synchronous I/O, thus 
 
 Based on different JVM implementations, `newWorkStrealingPool` might be a pre-configured `ForkJoinPool`.
 
-After the addition of work strealing pool:
+After the addition of work stealing pool:
 ```
 
 Benchmark                                                                        (iterations)    Mode     Cnt   Score   Error  Units
@@ -448,7 +454,10 @@ Exception in thread "main" java.lang.OutOfMemoryError: unable to create new nati
 ```
 Intellij Idea seems to keep restarting the process - it keeps appearing within the system (ref.: `ps aux`)
 Perhaps it's trying to create a heap dump?
-When trying to close the IDEA, it keeps trying to deatch the process as well - it prevents it from successful termination of IDE.
+When trying to close the IDEA, it keeps trying to death the process as well - it prevents it from successful termination of IDE.
 
 After clicking "terminate", it tries to terminate the app, but didn't succeed.
-Afterwards, I click "cancel" and repeat the process. Afterwards, the project is successully closed.
+Afterwards, I click "cancel" and repeat the process. Afterwards, the project is successfully closed.
+
+![img_8.png](img_8.png)
+![img_9.png](img_9.png)

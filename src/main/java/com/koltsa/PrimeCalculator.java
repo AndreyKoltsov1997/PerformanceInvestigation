@@ -37,6 +37,7 @@ class BigIntegerIterator {
 
 public class PrimeCalculator {
     public static void main(String[] args) throws InterruptedException, IOException, RunnerException {
+        PrimeCalculator.getPrimes(Integer.parseInt(args[0]));
 //        ThreadSupportTest.checkHowManyThreadsJvmCouldHave();
 //        Options opt = new OptionsBuilder()
 //                // -- benchmark that'd be ran
@@ -48,7 +49,7 @@ public class PrimeCalculator {
 //
 //        new Runner(opt).run();
 
-        PrimeCalculatorEnhanced.getPrimes(Integer.parseInt(args[0]));
+//        PrimeCalculatorEnhanced.getPrimes(Integer.parseInt(args[0]));
 //        System.out.println(PrimeCalculator.getPrimes(Integer.parseInt(args[0])));
 //        CalculatorBenchmark benchmark = new CalculatorBenchmark();
 //        benchmark.init();
@@ -81,6 +82,8 @@ public class PrimeCalculator {
         ExecutorService executors = Executors.newFixedThreadPool(maxPrime);
 
         // amount of threads had been changed due to system limitations: 3000 -> 1500 (inability to create native thread)
+        // 'synchronized' does not guarantee there won't be a deadlock. Essentially, it makes this part logically single-threaded , ...
+        // ... thus, given 3000+ threads, the program will hang.
         synchronized (primeNumbersToRemove) {
             for (Integer candidate : primeNumbers) {
                 executors.submit(() -> {
