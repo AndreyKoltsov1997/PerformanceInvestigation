@@ -37,21 +37,48 @@ Let's take a look at CPU snapshot ([500k-primes-1500-threads-PrimeCalculator-202
 ![img_3.png](img_3.png)
 A more simple view would be in the form of flamegraph:
 ![img_5.png](img_5.png)
-Found issues:
-* **Issue 1.** The sampling matches part of the code responsible for the removal of the available prime numbers. They're stored within `LinkedList` - an insufficient collection for such case, since each removal require traversing, which is implemented via O(N) lookup time. A more sufficient collection would be HashMap, since it provides O(1) lookup time.
-* **Issue 2 & 3**. Both of them are related to insufficient control of application flow. Depending on stack trace, stack depth and its type, the creation of `Exception` instance is expensive. In an environment where they're constantly created in order to control the application flow, the affection on performance (CPU, Heap and, as a result, GC) is inevitable. As an alternative, we should replace the signature to use `boolean` variable.
 
-![img_6.png](img_6.png)
+Found issues:
+* **Issue 1.** The samples link to the removal of non-prime numbers - ` primeNumbers.remove(toRemove)`. 
+Given the fact `primeNumbers` is an instance of `LinkedList`, each removal operation requires traversing the list to look-up the element and remove it - it's an O(N) operation.
+Omitting changes within business logic itself (to not use a collection for storage of non-prime numbers), a more suitable collection for this use case would be `HashSet`, as it removes element by O(1) time.
+* **Issue 2 & 3**. Both of them are related to insufficient control of application workflow - via `Exception` instances. 
+Depending on stack trace, stack depth and type, the creation of `Exception` instance is expensive. 
+Considering their frequent creation in our case, the affection on performance (CPU, Heap and, as a result, GC) is inevitable.
+A more simple and less expensive approach would be the use of `boolean` type.
 
 Snapshot: [500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot](snapshots/500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot)
 
 ## 1.2 CPU analysis - 50,000 numbers, 50,000 threads
 The solution was launched within other environment, where JVM is capable of having ~50,000 threads.
+Thus, it's now possible to check the performance affection caused by the approach of creating thread pool, which capacity is equal to 
+length of number sequence.
 
 ![img_8.png](img_8.png)
+Looking at [50k-primes-cpu-PrimeCalculator.snapshot](snapshots/50k-primes-cpu-PrimeCalculator.snapshot), the following observations could be made:
+* Most (92%) of the operations within CPU samples are dedicated to thread's initialization, while only 7% is dedicated to actual business logic - determination of prime numbers.
+* 77% of such operations is related to the creation of the thread.
+
+Therefore, the following changes could be suggested:
+1. **Reduce concurrency level**. Each thread requires stack. Such immense amount of threads - 3000 at minimum - introduces 
+significant context switching time, as well as requires memory allocation.
+2. **Use different thread pool implementation**. Thread pool used within the original implementation - `newFixedThreadPool(...)` - creates a certain
+amount of worker threads (equal to max prime number) and a queue of the task (check if a number is prime). All of the tasks are
+put onto blocking queue (see: implementation of `newFixedThreadPool(...)` below), thus, given our concurrency level, a significant
+contention within the queue is unavoidable.
+
+```
+...
+ public static ExecutorService newFixedThreadPool(int nThreads) {
+        return new ThreadPoolExecutor(nThreads, nThreads,
+                                      0L, TimeUnit.MILLISECONDS,
+                                      new LinkedBlockingQueue<Runnable>());
+    }
+ ...
+```
+
 ![img_9.png](img_9.png)
 
-Snapshot: [50k-primes-cpu-PrimeCalculator.snapshot](snapshots/50k-primes-cpu-PrimeCalculator.snapshot)
 
 ## 1.2 Heap analysis
 Heap usage is insufficient for such application.
