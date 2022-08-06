@@ -688,5 +688,10 @@ CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p1.00           
 CalculatorBenchmark.runOriginalImplementation                                            1000  sample    410    122,600 �    1,715  ms/op
 ```
 
+# Visualization
+In order to simplify the comparison, automation for the visualization of JMH measurements had been implemented.
+
+Please, refer to [visualization](visualization)
+
 # Further enhancements
 It's possible to automate the profiling via CLI solutions, such as async profiler.
