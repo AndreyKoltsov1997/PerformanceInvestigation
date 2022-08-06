@@ -163,35 +163,7 @@ Considering the context of this task, we don't expect any synchronous I/O, thus 
 
 Based on different JVM implementations, `newWorkStrealingPool` might be a pre-configured `ForkJoinPool`.
 
-After the addition of work stealing pool:
-```
-
-Benchmark                                                                        (iterations)    Mode     Cnt   Score   Error  Units
-CalculatorBenchmark.runEnhancedBenchmark                                                  100  sample  213591   0.234 ± 0.001  ms/op
-...
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.50                       100  sample           0.218          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.90                       100  sample           0.274          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.95                       100  sample           0.306          ms/op
-...
-CalculatorBenchmark.runEnhancedBenchmark                                                  500  sample  186787   0.267 ± 0.001  ms/op
-...
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.50                       500  sample           0.254          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.90                       500  sample           0.305          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.95                       500  sample           0.334          ms/op
-...
-CalculatorBenchmark.runOriginalImplementation                                             100  sample   16984   2.943 ± 0.005  ms/op
-...
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.50             100  sample           2.920          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.90             100  sample           3.142          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.95             100  sample           3.265          ms/op
-...
-CalculatorBenchmark.runOriginalImplementation                                             500  sample    2219  22.538 ± 0.140  ms/op
-...
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.50             500  sample          22.413          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.90             500  sample          24.445          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.95             500  sample          25.854          ms/op
-...
-```
+(!) Thread pool's capacity depends on the environment (cores, JVM limits for available processes, etc.). Instead of hard-coding the value or multiplies based on available cores, I'd let user specify it via configuration options.
 
 ## [enhanced] for-loop optimization
 In for loop:
