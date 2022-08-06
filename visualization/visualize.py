@@ -12,7 +12,7 @@ class BenchmarkMeasurement:
         self.sample_size = int(sample_size)
         self.percentile = percentile
         # -- JMH prints results as "0,124", "1,123" and all of them are integer. ...
-        # ... I haven't found a locale option that'd handle it without errors, thus repliacing ...
+        # ... I haven't found a locale option that'd handle it without errors, thus replacing ...
         # ... it manually.
         self.value = float(value.replace(',', ''))
         # Operations per second, operations per nanosecond, etc.
@@ -40,7 +40,7 @@ def __get_jmh_measurement_from_line(line: str) -> BenchmarkMeasurement:
 
 def __get_jmh_measurement_matching_criteria(measurements: list[BenchmarkMeasurement], sample_size: int, percentile: str) -> BenchmarkMeasurement:
     """
-    Retrieves JMH measurement based on provided criterias.
+    Retrieves JMH measurement based on provided criteria.
     :param measurements: - list of JMH measurements
     :param sample_size: - JMH sample size used within measurement
     :param percentile: - percentile of JMH result
