@@ -78,8 +78,7 @@ public class PrimeCalculator {
 
         List<Integer> primeNumbersToRemove = Collections.synchronizedList(new LinkedList<>());
         CountDownLatch latch = new CountDownLatch(maxPrime);
-//        ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
-        ExecutorService executors = Executors.newFixedThreadPool(maxPrime);
+        ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
 
         // amount of threads had been changed due to system limitations: 3000 -> 1500 (inability to create native thread)
         // 'synchronized' does not guarantee there won't be a deadlock. Essentially, it makes this part logically single-threaded , ...
