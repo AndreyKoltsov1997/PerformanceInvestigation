@@ -163,7 +163,7 @@ Considering the context of this task, we don't expect any synchronous I/O, thus 
 
 Based on different JVM implementations, `newWorkStrealingPool` might be a pre-configured `ForkJoinPool`.
 
-(!) Thread pool's capacity depends on the environment (cores, JVM limits for available processes, etc.). Instead of hard-coding the value or multiplies based on available cores, I'd let user specify it via configuration options.
+(!) Thread pool's capacity depends on the environment (cores, JVM limits for available processes, etc.). Assuming that'd be a part of server-side logic, instead of hard-coding the value or multiplies based on available cores, I'd let user specify it via configuration options.
 
 ## [enhanced] for-loop optimization
 In for loop:
@@ -509,7 +509,70 @@ CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p1.00 
 ## Experiment - exceptions
 
 Program flow is controller with exceptions. Using LinkedList, fixed thread pool, queue,
+```
+    public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
+        ...
+        executors.submit(() -> {
+                try {
+                    isPrime(candidate);
+                    primeNumbersQueue.add(candidate);
+                } catch (Exception e) {
+                    // not a prime
+                }
+                latch.countDown();
+            });
+        ....
+    }
 
+    private static void isPrime(Integer number) throws Exception {
+       ...
+        if (number < 2 || number % 2 == 0) {
+            throw new Exception();
+        }
+        ...
+        for (int i = 3; i < number; i+= 2) {
+            if (number % i == 0) {
+                throw new Exception();
+            }
+        }
+        ...
+    }
+    
+```
+
+
+Results:
+
+```
+Benchmark                                                              (iterations)    Mode    Cnt   Score   Error  Units
+CalculatorBenchmark.runEnhancedBenchmark                                       1000  sample  31803   1,571 � 0,004  ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.00            1000  sample          1,112          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.50            1000  sample          1,528          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.90            1000  sample          1,778          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.95            1000  sample          1,935          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.99            1000  sample          2,482          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.999           1000  sample          2,967          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.9999          1000  sample          4,053          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p1.00            1000  sample          4,841          ms/op
+CalculatorBenchmark.runEnhancedBenchmark                                       5000  sample   9075   5,507 � 0,020  ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.00            5000  sample          4,235          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.50            5000  sample          5,390          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.90            5000  sample          6,259          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.95            5000  sample          6,586          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.99            5000  sample          7,391          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.999           5000  sample          8,921          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.9999          5000  sample         23,101          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p1.00            5000  sample         23,101          ms/op
+CalculatorBenchmark.runEnhancedBenchmark                                      10000  sample   4623  10,813 � 0,036  ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.00           10000  sample          8,831          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.50           10000  sample         10,699          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.90           10000  sample         11,715          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.95           10000  sample         12,321          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.99           10000  sample         13,398          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.999          10000  sample         14,424          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.9999         10000  sample         14,844          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p1.00           10000  sample         14,844          ms/op
+```
 ## Experiment - LinkedList
 ```
 List<Integer> primeNumbersQueue = Collections.synchronizedList(new LinkedList<>());
@@ -547,12 +610,11 @@ CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.9999         
 CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p1.00           10000  sample          8,520          ms/op
 ```
 ## Experiment - fixed thread pool
-TODO: run with 1000, 5000, 10000 (actually, we need only 5k)
 Reduced threads within pool 
 Code:
 ```
 final int cores = Runtime.getRuntime().availableProcessors();
-        ExecutorService executors = Executors.newFixedThreadPool(cores);```
+ExecutorService executors = Executors.newFixedThreadPool(cores);
 ```
 Results:
 ``` 
@@ -587,6 +649,12 @@ CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p1.00           
 
 
 ## Experiment - work stealing thread pool 
+Code:
+```
+ExecutorService executors = Executors.newWorkStealingPool();
+```
+
+Results:
 ```
 Andrey, [6 Aug 2022, 16:15:10]:
 Benchmark                                                                        (iterations)    Mode    Cnt      Score      Error  Units
