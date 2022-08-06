@@ -5,36 +5,52 @@
 3. Add code changes that'd enhance the performance.
 
 
-# 1. Describe issues based on CPU and Memory analysis.
+# 1. Set up 
 YourTrack had been used via Intellij IDEA. The IntelliJ's run method had been excluded from profiling.
 
+## Environment
+TODO: Add details
+1. MacBook Air M1
+2. Windows Laptop
 
-## 1.1 Experiment 1 - increase
+# CPU and Memory analysis.
 
-
-![img_2.png](img_2.png)
-
-# 1. Default implementation
+## Execution environment
 * Argument: 500000 (for sufficient sample size)
 * JVM options: `-XX:+UnlockDiagnosticVMOptions -XX:+PrintFlagsFinal -Xmx4000m` (otherwise Java OOM)
 * Thread limit: amount of threads had been changed due to system limitations: 3000 -> 1500 (inability to create native thread), 
-## 1.1 CPU analysis (Code had been modified to use fixed amount of threads) - general
+
+## 1.1 CPU analysis - 500,000 numbers, 1500 threads
+Considering issue observed within the environment (TODO: add reference to description), it was decided to hard-code the amount of threads within the pool.
+```
+public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
+    // ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
+    ExecutorService executors = Executors.newFixedThreadPool(1500);
+    ...
+}
+```
+As an alternative step, I've tried to run the program with maximal prime numbers that'd align with the amount of maximal threads JVM within my environment could spawn.
+Unfortunately, considering small sampling size, such approach was insufficient for CPU analysis.
+
+Let's take a look at CPU snapshot ([500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot](snapshots/500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot)).
 
 ![img_3.png](img_3.png)
 A more simple view would be in the form of flamegraph:
 ![img_5.png](img_5.png)
 Found issues:
-* Issue 1. The sampling matches part of the code responsible for the removal of the available prime numbers. They're stored within `LinkedList` - an insufficient collection for such case, since each removal require traversing, which is implemented via O(N) lookup time. A more sufficient collection would be HashMap, since it provides O(1) lookup time.
-* Issue 2 & 3. Both of them are related to insufficient control of application flow. Depending on stack trace, stack depth and its type, the creation of `Exception` instance is expensive. In an environment where they're constantly created in order to control the application flow, the affection on performance (CPU, Heap and, as a result, GC) is inevitable. As an alternative, we should replace the signature to use `boolean` variable.
+* **Issue 1.** The sampling matches part of the code responsible for the removal of the available prime numbers. They're stored within `LinkedList` - an insufficient collection for such case, since each removal require traversing, which is implemented via O(N) lookup time. A more sufficient collection would be HashMap, since it provides O(1) lookup time.
+* **Issue 2 & 3**. Both of them are related to insufficient control of application flow. Depending on stack trace, stack depth and its type, the creation of `Exception` instance is expensive. In an environment where they're constantly created in order to control the application flow, the affection on performance (CPU, Heap and, as a result, GC) is inevitable. As an alternative, we should replace the signature to use `boolean` variable.
 
 ![img_6.png](img_6.png)
 
 Snapshot: [500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot](snapshots/500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot)
 
-## 1.2 CPU analysis - original implementation, no additional limits
-50k prime numbers
+## 1.2 CPU analysis - 50,000 numbers, 50,000 threads
+The solution was launched within other environment, where JVM is capable of having ~50,000 threads.
+
 ![img_8.png](img_8.png)
 ![img_9.png](img_9.png)
+
 Snapshot: [50k-primes-cpu-PrimeCalculator.snapshot](snapshots/50k-primes-cpu-PrimeCalculator.snapshot)
 
 ## 1.2 Heap analysis
@@ -690,7 +706,7 @@ CalculatorBenchmark.runOriginalImplementation                                   
 
 # Visualization
 In order to simplify the comparison, automation for the visualization of JMH measurements had been implemented.
-
+![img_10.png](img_10.png)
 Please, refer to [visualization](visualization)
 
 # Further enhancements
