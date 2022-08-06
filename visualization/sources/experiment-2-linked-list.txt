@@ -1,0 +1,29 @@
+Benchmark                                                              (iterations)    Mode    Cnt   Score   Error  Units
+CalculatorBenchmark.runEnhancedBenchmark                                       1000  sample  50096   0,997 � 0,003  ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.00            1000  sample          0,673          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.50            1000  sample          0,954          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.90            1000  sample          1,128          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.95            1000  sample          1,251          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.99            1000  sample          1,878          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.999           1000  sample          2,424          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.9999          1000  sample          4,391          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p1.00            1000  sample         16,302          ms/op
+CalculatorBenchmark.runEnhancedBenchmark                                       5000  sample  17284   2,891 � 0,008  ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.00            5000  sample          2,220          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.50            5000  sample          2,826          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.90            5000  sample          3,281          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.95            5000  sample          3,473          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.99            5000  sample          3,961          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.999           5000  sample          4,837          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.9999          5000  sample          5,581          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p1.00            5000  sample          5,849          ms/op
+CalculatorBenchmark.runEnhancedBenchmark                                      10000  sample   8804   5,676 � 0,018  ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.00           10000  sample          4,555          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.50           10000  sample          5,571          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.90           10000  sample          6,382          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.95           10000  sample          6,717          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.99           10000  sample          7,225          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.999          10000  sample          8,161          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.9999         10000  sample          8,520          ms/op
+CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p1.00           10000  sample          8,520          ms/op
+```

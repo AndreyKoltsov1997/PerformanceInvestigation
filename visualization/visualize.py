@@ -55,7 +55,11 @@ def __print_data(file_path) -> None:
     with open(file_path) as file:
         for line in file:
 
-            jmh_measurement = __get_payload_from_line('test_group', line)
+            try:
+                jmh_measurement = __get_payload_from_line('test_group', line)
+            except Exception as e:
+                print(f"Unable to parse line: {line} \n {e}")
+                continue
             if not jmh_measurement or jmh_measurement.percentile != '95th':
                 continue
             # simplified grouping
@@ -69,10 +73,10 @@ def __print_data(file_path) -> None:
     y_values = list()
     for sample_size, jmh_measurements in data.items():
         x_values.add(sample_size)
-        for measurement in jmh_measurements:
-            # filter by percentiles here
-            if measurement.percentile == '95th':
-                y_values.append(measurement.value)
+        # for measurement in jmh_measurements:
+        #     # filter by percentiles here
+        #     if measurement.percentile == '95th':
+        #         y_values.append(measurement.value)
 
     # 1. Sort x values
     # 2. Get y value for each x value
@@ -87,7 +91,7 @@ def __print_data(file_path) -> None:
     # plt.plot(x, z)
 
     plt.legend(loc='upper center')
-    plt.show()
+
 
 
 def plot_files() -> None:
@@ -98,6 +102,9 @@ def plot_files() -> None:
         print(f"file: {file}")
         filepath = "sources/" + file.decode("utf-8")
         __print_data(filepath)
+    
+    plt.show()
+
         
 # CalculatorBenchmark.runEnhancedBenchmark                                                 1000  sample  57295      0,872 �    0,006  ms/op
 # CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.00                      1000  sample             0,514             ms/op
