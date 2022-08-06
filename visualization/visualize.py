@@ -1,7 +1,8 @@
+import os, sys, getopt
 from argparse import ArgumentError
 from collections import defaultdict
 import matplotlib.pyplot as plt
-import os, sys, getopt
+
 
 """
 Describes single measurement from JMH.
@@ -41,10 +42,11 @@ def __get_samples(sample_size: str, percentile: str, object: list) -> list:
     result = list(map(lambda x: x.value, final_list))
     return result
 
+
 def __print_data(file_path) -> None:
     # sample size, percentile, value, group name
     # Sample Size <-> [Objects]
-    data = defaultdict(list)
+    data = dict()
 
     with open(file_path) as file:
         for line in file:
@@ -78,15 +80,14 @@ def __print_data(file_path) -> None:
 
 
 def plot_files(datasource_path: str) -> None:
-    folder = os.fsencode('sources')
+    folder = os.fsencode(datasource_path)
 
     for file in os.listdir(folder):
-        filepath = "sources/" + file.decode("utf-8")
+        filepath = f"{datasource_path}/" + file.decode('utf-8')
         __print_data(filepath)
 
     plt.xlabel('Sample size')
     plt.ylabel('Score, ms/op')
-
     plt.legend(loc='upper center')
     plt.show()
 
@@ -94,9 +95,9 @@ def plot_files(datasource_path: str) -> None:
 def main(argv):
     try:
         # -- parse CLI options
-        opts, args = getopt.getopt(argv,"hd:",["dir="])
+        opts, args = getopt.getopt(argv, 'hd:', ['dir='])
         print(opts)
-        if not argv:
+        if not opts:
             raise getopt.GetoptError('Not enough arguments.')
     except (getopt.GetoptError, ArgumentError) as e:
       print(f"{e} \n Usage: python3 visualize.py -d <source directory>")
@@ -107,7 +108,6 @@ def main(argv):
         if opt == '-d':
             plot_files(arg)
             sys.exit(0)
-
 
 
 if __name__ == "__main__":
