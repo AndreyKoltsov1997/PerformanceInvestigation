@@ -470,25 +470,12 @@ CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p1.00 
 
 
 ## 6.3 Elimination of excessive objects
+Changes made:
+* **Exceptions**. As stated in [4.1  "isPrime(...)" method](#41-isprime-method), the control of application from had been 
+changed from using `Exception` to boolean value.
+* **Collections (BigInteger Iterator, primeNumbersToRemove)**. As stated in [4.3 Redundant use of BigIntegerIterator](#43-redundant-use-of-bigintegeriterator),
+the change was aimed at removal of `BigIntegerIterator` class, as well as other unnecessary collections mentioned in [2.4 Heap analysis - 50,000 numbers, 50,000 threads](#24-heap-analysis---50000-numbers-50000-threads).
 
-* Exceptions
-* Collections (BigInteger Iterator, primeNumbersToRemove)
-The first enhancement was dedicated to eliminating the use of Exceptions as the way to control application flow.
-```
-    private static boolean isPrime(int number) {
-      ...
-        if (number % 2 == 0) {
-            return true;
-        }
-        ...
-        for (int i = 3; i < number; i+= 2) {
-            if (number % i == 0) {
-                return false;
-            }
-        }
-        return true;
-    }
- ```
 
 Results:
 ```
@@ -523,10 +510,13 @@ CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p1.00           
 ```
 
 ## 6.4 Change of concurrency level and management
-Code:
-```
-ExecutorService executors = Executors.newWorkStealingPool();
-```
+
+Changes made:
+* **Concurrency level**. Given the suggestions made in [4.2 Concurrency level and execution](#42-concurrency-level-and-execution) based on 
+[2. CPU and Memory analysis](#2-cpu-and-memory-analysis), concurrency level had been reduced from "at least 3000" down to the amount of available processors.
+* **Concurrency management**. As suggested in [4.2 Concurrency level and execution](#42-concurrency-level-and-execution),
+work-stealing approach had been applied to our use case.
+
 
 Results:
 ```
@@ -582,12 +572,10 @@ Thread count: 4051
 # Issues
 
 ## MacBook Air M1 - thread limitations
-Value changed: 100 -> 100000 in order to increase amount of samples collected.
 
-As a result - Java OOM. Do we need to create that many threads? (certainly not)
-It's such an expensive operation.
-Starting from ~5000, on my macbook, I observed inability to create new thread (208 threads). It's abnormal and related to JVM configuration on my macbook,
-
+On MacBook Air (M1, 2020), the original implementation of PrimeCalculator had been crashing in case `maxPrime` had been set to
+value higher than ~2000, while most of Windows laptops were capable of handling 250,000+ threads.
+Thus, the sample size collected during profiling of application had been insufficient.
 ```
 Exception in thread "main" java.lang.OutOfMemoryError: unable to create new native thread
 	at java.lang.Thread.$$YJP$$start0(Native Method)
@@ -599,13 +587,12 @@ java.lang.OutOfMemoryError: unable to create new native thread
 Process finished with exit code 1
 ```
 
-Abnormal due ot amount of threads mac could handle
+Looking at kernel configuration, we could see it could handle 10,000 threads.
 ``` 
 % sysctl kern.num_threads
 kern.num_threads: 10240
 ```
-Basically, `ulimit` controls resources available to the shell and its processes, where launchctl controls maximum resources to the system and its processes.
-Looking at `ulimit` statistics for the current, we could see that the current limit is 1333 threads. Unix, by design, don't restrict the amount of processes a user could spawn.,
+Looking at `ulimit` statistics for the current user, we could see that the current limit is 1333 threads. 
 ```
 andreykoltsov@Andreys-MacBook-Air ~ % ulimit -a
 -t: cpu time (seconds)              unlimited
@@ -619,14 +606,15 @@ andreykoltsov@Andreys-MacBook-Air ~ % ulimit -a
 -n: file descriptors                2560
 ```
 
-Kernel limit is 2k, thus its max available hard limit for all users:
+Looking at kernel limit, we could assume it's a (currently) hard-limit for max processes for the user.
 ```
  sysctl -a |grep kern | grep proc
 kern.maxproc: 2000
 ```
 
-To make persistent change in macOS for kernel parameters, we could modify launch daemon:
+In order to modify the hard limit on macOS Big Sur, we should register a new launch deamon. The process if the following:
 ```
+# 1. Create manifest for launch daemon.
 
 $ sudo vi /Library/LaunchDaemons/com.startup.sysctl.plist
 <?xml version="1.0" encoding="UTF-8"?>
@@ -647,81 +635,30 @@ $ sudo vi /Library/LaunchDaemons/com.startup.sysctl.plist
 </dict>
 </plist>
 
-```
-
-To apply launch daemon changes:
-```
+# 2. Register launch daemin
 sudo chown root:wheel /Library/LaunchDaemons/com.startup.sysctl.plist
 sudo launchctl load /Library/LaunchDaemons/com.startup.sysctl.plist
-```
-... but it didn't work on BigSur - the limit had stayed to be 2k.
-
-Looking at launchctl statistics, we could see that soft limit for processes is 1.3k and hard limit is 2k
-```
-sudo launchctl limit
-        cpu         unlimited      unlimited      
-        filesize    unlimited      unlimited      
-        data        unlimited      unlimited      
-        stack       8372224        67092480       
-        core        0              unlimited      
-        rss         unlimited      unlimited      
-        memlock     unlimited      unlimited      
-        maxproc     1333           2000           
-        maxfiles    256            unlimited      
-```
-
-Let's change it:
-```
-sudo launchctl limit maxproc 20000 100000
 
 ```
-In order to have an efficient benchmarking, let's update the amount of processes that current user could spawn up to 100k.
-```
-ulimit -u 100000
-```
 
-MacOS could run in server performance mode (https://apple.stackexchange.com/questions/373035/fix-fork-resource-temporarily-unavailable-on-os-x-macos/373036#373036)
+Unfortunately, it didn't work - the limit had stayed to be 2k even after the reboot.
+
+
+
+
+Alternative approach - try to run macOS could run in [server performance mode](https://apple.stackexchange.com/questions/373035/fix-fork-resource-temporarily-unavailable-on-os-x-macos/373036#373036)
 ```
 sudo nvram boot-args="serverperfmode=1 $(nvram boot-args 2>/dev/null | cut -f 2-)"
 ```
-Afterwards, amount of threads finally increased:
-```
-sudo sysctl kern.num_threads
-kern.num_threads: 10240
-```
 
-Afterwards, in order to let JVM use these processes, I've increased user limit:
-```
-sudo launchctl limit maxproc 10000 10000
-```
 
-Afterwards, the change of user limit worked without any error:
-```
-sudo ulimit -u 10000
-```
+Afterwards, the attempts to set `maxproc` to value higher than hard limit didn't return an error (unlike previous attempts), yet, the value
+remained consistent - 2000 processes. 
 
-Since the change is only possible to make under 'root', I've re-launched Idea via `sudo`:
+As an alternative, in order to be able to use hard limit (`maxproc` 2000 instead of 1333), I've launched IntelliJ IDEA as root:
 ```
 sudo /Applications/IntelliJ\ IDEA\ CE.app/Contents/MacOS/idea
 ```
-
-By default, each thread has 512kb in RAM. It could be changed using Xss.
-
-As a result, experiment had been run with custom JVM options in order to increase heap size.
-
-
-## Idea - unterminated process in case native thread couldn't be created
-(IDEA had been launched under `sudo`)
-In case Java OOM had occurred:
-```
-Exception in thread "main" java.lang.OutOfMemoryError: unable to create new native thread
-```
-Intellij Idea seems to keep restarting the process - it keeps appearing within the system (ref.: `ps aux`)
-Perhaps it's trying to create a heap dump?
-When trying to close the IDEA, it keeps trying to death the process as well - it prevents it from successful termination of IDE.
-
-After clicking "terminate", it tries to terminate the app, but didn't succeed.
-Afterwards, I click "cancel" and repeat the process. Afterwards, the project is successfully closed.
 
 ## YourKit - allocation profiling issue
 Allocation profiling is started within YourKit, yet no related data is shown.
