@@ -21,7 +21,8 @@ TODO: Add details
 * Thread limit: amount of threads had been changed due to system limitations: 3000 -> 1500 (inability to create native thread), 
 
 ## 1.1 CPU analysis - 500,000 numbers, 1500 threads
-Considering issue observed within the environment (TODO: add reference to description), it was decided to hard-code the amount of threads within the pool.
+Considering issue observed within the environment (TODO: add reference to description), it was decided to hard-code the 
+amount of threads within the pool.
 ```
 public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
     // ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
@@ -29,7 +30,8 @@ public static List<Integer> getPrimes(int maxPrime) throws InterruptedException 
     ...
 }
 ```
-As an alternative step, I've tried to run the program with maximal prime numbers that'd align with the amount of maximal threads JVM within my environment could spawn.
+As an alternative step, I've tried to run the program with maximal prime numbers that'd align with the amount of maximal 
+threads JVM within my environment could spawn.
 Unfortunately, considering small sampling size, such approach was insufficient for CPU analysis.
 
 Let's take a look at CPU snapshot ([500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot](snapshots/500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot)).
@@ -40,8 +42,10 @@ A more simple view would be in the form of flamegraph:
 
 Found issues:
 * **Issue 1.** The samples link to the removal of non-prime numbers - ` primeNumbers.remove(toRemove)`. 
-Given the fact `primeNumbers` is an instance of `LinkedList`, each removal operation requires traversing the list to look-up the element and remove it - it's an O(N) operation.
-Omitting changes within business logic itself (to not use a collection for storage of non-prime numbers), a more suitable collection for this use case would be `HashSet`, as it removes element by O(1) time.
+Given the fact `primeNumbers` is an instance of `LinkedList`, each removal operation requires traversing the list to look-up 
+the element and remove it - it's an O(N) operation.
+Omitting changes within business logic itself (to not use a collection for storage of non-prime numbers), a more suitable 
+collection for this use case would be `HashSet`, as it removes element by O(1) time.
 * **Issue 2 & 3**. Both of them are related to insufficient control of application workflow - via `Exception` instances. 
 Depending on stack trace, stack depth and type, the creation of `Exception` instance is expensive. 
 Considering their frequent creation in our case, the affection on performance (CPU, Heap and, as a result, GC) is inevitable.
@@ -134,7 +138,8 @@ private static void isPrime(List<Integer> primeNumbers, Integer candidate) throw
 ...
 }
 ```
-6. **Creation of `Exception` in order to create application workflow**. As stated in "CPU" section, that could be eliminated. As stated within CPU profiling (TODO: add reference),
+6. **Creation of `Exception` in order to create application workflow**. As stated in "CPU" section, that could be eliminated.
+As stated within CPU profiling (TODO: add reference),
    the use of Exceptions is redundant, especially considering performance affection it causes via additional CPU and Heap pressure.
    Generation of `Exceptions` instances could be replaced with returning a primitive `boolean` value from `isPrime(...)`.
 
@@ -187,12 +192,23 @@ static class SynchronizedList<E> ... {
 }
 ```
 
+## 1.4 Analysis - conclusion
+Based on CPU, RAM and Lock analysis, we could make enhancements to the application: data structures, concurrency, application workflow.
+
+In order to sufficiently compare the performance, that'd be useful to understand how user would see it.
+
 # 2. Automation - benchmark for comparison between the solutions
 
-Java Profiling is useful for the investigation of application's behavior: resource (CPU / RAM / Heap / off-heap) consumption, allocation, state of threads.
-In context of performance, using this data, we might determine the factors that slow down application's execution, yet it wouldn't be highly useful when comparing performance of 2 different build from user perspective.
+Profiling of the application provides significant benefits while investigating its behavior: resource consumption (CPU / RAM / Heap / off-heap),
+object allocation, state of threads. Using the objectives made based on such analysis, developers could enhance application performance and stability.
 
-Instead of comparing CPU sampling data, that would be sufficient to compare the latency of operations within our business logic. That could be achieved in case a custom benchmark would be implemented.
+While being useful for the analysis, it might be hard to use profiling data to compare the performance of 2 (or more) versions of the application, since
+the majority of profilers use CPU sampling instead of wall-clock time. Instead, in order to determine performance of the application
+in different use-cases, we could use `benchmarking` - a programmatic way to configure, execute and measure useful work of business logic 
+from user perspective.
+
+As an outcome from benchmarking, we'd retrieve numerical characteristics, which we could use to qualify and characterize the performance of different 
+versions of the app.
 
 ## 2.1 Tools
 [JMH](https://github.com/openjdk/jmh) is a Java harness for building, running, and analysing nano/micro/milli/macro benchmarks written in Java and other languages targeting the JVM.
