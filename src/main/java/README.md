@@ -5,157 +5,313 @@
 3. Add code changes that'd enhance the performance.
 
 
-# 1. Describe issues based on CPU and Memory analysis.
+# 1. Set up 
 YourTrack had been used via Intellij IDEA. The IntelliJ's run method had been excluded from profiling.
 
+## Environment
+TODO: Add details
+1. MacBook Air M1
+2. Windows Laptop
 
-## 1.1 Experiment 1 - increase
+# CPU and Memory analysis.
 
-
-![img_2.png](img_2.png)
-
-# 1. Default implementation
+## Execution environment
 * Argument: 500000 (for sufficient sample size)
 * JVM options: `-XX:+UnlockDiagnosticVMOptions -XX:+PrintFlagsFinal -Xmx4000m` (otherwise Java OOM)
 * Thread limit: amount of threads had been changed due to system limitations: 3000 -> 1500 (inability to create native thread), 
-## 1.1 CPU analysis (Code had been modified to use fixed amount of threads) - general
+
+## 1.1 CPU analysis - 500,000 numbers, 1500 threads
+Considering issue observed within the environment (TODO: add reference to description), it was decided to hard-code the 
+amount of threads within the pool.
+```
+public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
+    // ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
+    ExecutorService executors = Executors.newFixedThreadPool(1500);
+    ...
+}
+```
+As an alternative step, I've tried to run the program with maximal prime numbers that'd align with the amount of maximal 
+threads JVM within my environment could spawn.
+Unfortunately, considering small sampling size, such approach was insufficient for CPU analysis.
+
+Let's take a look at CPU snapshot ([500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot](snapshots/500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot)).
 
 ![img_3.png](img_3.png)
 A more simple view would be in the form of flamegraph:
 ![img_5.png](img_5.png)
-Found issues:
-* Issue 1. The sampling matches part of the code responsible for the removal of the available prime numbers. They're stored within `LinkedList` - an insufficient collection for such case, since each removal require traversing, which is implemented via O(N) lookup time. A more sufficient collection would be HashMap, since it provides O(1) lookup time.
-* Issue 2 & 3. Both of them are related to insufficient control of application flow. Depending on stack trace, stack depth and its type, the creation of `Exception` instance is expensive. In an environment where they're constantly created in order to control the application flow, the affection on performance (CPU, Heap and, as a result, GC) is inevitable. As an alternative, we should replace the signature to use `boolean` variable.
 
-![img_6.png](img_6.png)
+Found issues:
+* **Issue 1.** The samples link to the removal of non-prime numbers - ` primeNumbers.remove(toRemove)`. 
+Given the fact `primeNumbers` is an instance of `LinkedList`, each removal operation requires traversing the list to look-up 
+the element and remove it - it's an O(N) operation.
+Omitting changes within business logic itself (to not use a collection for storage of non-prime numbers), a more suitable 
+collection for this use case would be `HashSet`, as it removes element by O(1) time.
+* **Issue 2 & 3**. Both of them are related to insufficient control of application workflow - via `Exception` instances. 
+Depending on stack trace, stack depth and type, the creation of `Exception` instance is expensive. 
+Considering their frequent creation in our case, the affection on performance (CPU, Heap and, as a result, GC) is inevitable.
+A more simple and less expensive approach would be the use of `boolean` type.
 
 Snapshot: [500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot](snapshots/500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot)
 
-## 1.2 CPU analysis - original implementation, no additional limits
-50k prime numbers
+## 1.2 CPU analysis - 50,000 numbers, 50,000 threads
+The solution was launched within other environment, where JVM is capable of having ~50,000 threads.
+Thus, it's now possible to check the performance affection caused by the approach of creating thread pool, which capacity is equal to 
+length of number sequence.
+
 ![img_8.png](img_8.png)
-![img_9.png](img_9.png)
-Snapshot: [50k-primes-cpu-PrimeCalculator.snapshot](snapshots/50k-primes-cpu-PrimeCalculator.snapshot)
+Looking at [50k-primes-cpu-PrimeCalculator.snapshot](snapshots/50k-primes-cpu-PrimeCalculator.snapshot), the following observations could be made:
+* Most (92%) of the operations within CPU samples are dedicated to thread's initialization, while only 7% is dedicated to actual business logic - determination of prime numbers.
+* 77% of such operations is related to the creation of the thread.
 
-## 1.2 Heap analysis
-Heap usage is insufficient for such application.
-![img_4.png](img_4.png)
+Therefore, the following changes could be suggested:
+1. **Reduce concurrency level**. Each thread requires stack. Such immense amount of threads - 3000 at minimum - introduces 
+significant context switching time, as well as requires memory allocation.
+2. **Use different thread pool implementation**. Thread pool used within the original implementation - `newFixedThreadPool(...)` - creates a certain
+amount of worker threads (equal to max prime number) and a queue of the task (check if a number is prime). All of the tasks are
+put onto blocking queue (see: implementation of `newFixedThreadPool(...)` below), thus, given our concurrency level, a significant
+contention within the queue is unavoidable.
 
-## 1.3 Lock analysis
-### 1.3.1 Redundant synchronization
-Synchronized collections are expensive. In the original implementation, `primeNumbers` are accessed by a single thread to append it.
-Reading is done in multithreaded environment, however, since Collection is not modified, synchronization is not mandatory.
-```
-   List<Integer> primeNumbers = Collections.synchronizedList(new LinkedList<>());
-
-```
-### 1.3.2 potential deadlock
-Potential deadlock (probably thread is frozen due to GC activity and not an actual deadlock)
-![img_1.png](img_1.png)
-
-### 1.3.3 Excessive amount of threads
-By default, we create thread-pool with 3000 threads or more. Apart from issues with JVMs running on machines with low amount of cores, 
-it leads to excessive context switching.
 ```
 ...
-ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
+ public static ExecutorService newFixedThreadPool(int nThreads) {
+        return new ThreadPoolExecutor(nThreads, nThreads,
+                                      0L, TimeUnit.MILLISECONDS,
+                                      new LinkedBlockingQueue<Runnable>());
+    }
+ ...
+```
+
+
+
+## 1.2 Heap analysis - 50,000 numbers, 50,000 threads
+
+Heap usage had been analyzed using allocation profiling. On macOS, I wasn't able to get allocation data due to unknown allocation info (TODO: add link).
+In order to capture all allocation and be able to turn on "allocation profiling" within YourTrack, I've added an extra sleep
+prior to execution of the method.
+```
+public static void main(String[] args) throws InterruptedException, IOException, RunnerException {
+Thread.sleep(30000);
 ...
+}
 ```
 
-## 1.4 RAM Analysis
-
-* Enabled Memory Snapshot capturing along with allocation profiling.
-* Significant heap space is used due to excessive allocation of objects.
-* ![img_7.png](img_7.png)
-Excessive allocation of objects could be found in:
-* BigInteger iterator. The collection could be populated without this object. The class could be removed. Not to mention the initial allocation of ArrayList size within the class - 500 might be insufficient, however, it's relatively small number for most of the machines.
+![img_15.png](img_15.png)
+Looking at [snapshots/allocation/60k-allocation-profiling-original.csv](snapshots/allocation/60k-allocation-profiling-original.csv), the following 
+observations could be made:
+1. **Redundant use of `BigIntegerIterator`**. We generate [2; maxPrime] instances of `BigIntegerIterator` and append it onto Collection.
+The following aspects could be retrieved from the issue: (a) `BigIntegerIterator` contains two collection with excessive initial capacity - 500 elements, while
+we append at-most 1 element to it; (b) we don't need two separate collections to store Integer values (`reference`) and its string
+representatives (`contain`); (c) `BigIntegerIterator` class is redundant - it could be replaced by operations with the collection itself.
 ```
-        List<BigIntegerIterator> myFiller = Stream.generate(new Supplier<BigIntegerIterator>() {
+class BigIntegerIterator {
+    private final List<String> contain = new ArrayList<>(500);
+    private final List<Integer> reference = new ArrayList<>(500);
+    ...
+}
+...
+List<BigIntegerIterator> myFiller = Stream.generate(new Supplier<BigIntegerIterator>() {
             ...
+            @Override
+            public BigIntegerIterator get() {
+                return new BigIntegerIterator(i++);
+            }
         }).limit(maxPrime).collect(Collectors.toList());
-
-        for (BigIntegerIterator integer : myFiller) {
-            primeNumbers.add(integer.getContain());
-        }
-        ...
-        
 ```
-* Exceptions. As stated in "CPU" section, that could be eliminated.
+
+2. **Creation of Runnable tasks**. Given the nature of the application - concurrent determination of prime numbers - the creation
+of such objects is reasonable. Yet, as stated within CPU profiling (TODO: add reference), concurrency level and thread pool implementation
+could be changed.
+3. Conversion of `String` to `Integer`. As stated in (1), there's no need to store integer value and its string representative separately.
+Thus, this part of the code could be eliminated.
+4. Creation of Lambda for executor service task. As stated in (2), given the concurrency nature of the application, it's reasonable to 
+have such objects within heap.
+5. **Creation of sublist and iteration over it.** The logic for prime numbers determination creates sublist of dividers for prime 
+number candidates. Given the fact we know the bounds of the range for potential candidates, there's no need to 
+generate a separate collection for it at each call of `isPrime(...)`.
 ```
 private static void isPrime(List<Integer> primeNumbers, Integer candidate) throws Exception {
         for (Integer j : primeNumbers.subList(0, candidate - 2)) {
             if (candidate % j == 0) {
                 throw new Exception();
             }
+        }
 ...
-            
+}
 ```
-* subList(...) method
+6. **Creation of `Exception` in order to create application workflow**. As stated in "CPU" section, that could be eliminated.
+As stated within CPU profiling (TODO: add reference),
+   the use of Exceptions is redundant, especially considering performance affection it causes via additional CPU and Heap pressure.
+   Generation of `Exceptions` instances could be replaced with returning a primitive `boolean` value from `isPrime(...)`.
+
+7. **Excessive concurrency level**. Original implementation assumes at least 3000 threads within the pool would be created.
+Depends on the environment, it might lead to excessive use of RAM (thread stacks) and native OS threads. As a result, in multiple environments,
+such approach would lead to Java `OutOfMemoryError` due to inability to create a new thread.
 ```
-    private static void isPrime(List<Integer> primeNumbers, Integer candidate) throws Exception {
-        for (Integer j : primeNumbers.subList(0, candidate - 2)) {
-        ...
+ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
+...
+java.lang.OutOfMemoryError: unable to create new native thread
 ```
 
+Excessive allocation of objects could be found in:
+
+
+* **Creation of excessive threads**. each thread occupies stack, but we could reduce concurrency. Leads to OOM.
+
+
+## 1.3 Lock analysis
+During CPU profiling, YourKit reported potential deadlock.
+
+![img_1.png](img_1.png)
+In my assumption, it's not a logical deadlock, but rather the indicator that multiple threads are waiting for the acquisition of 
+resources for more than 10 seconds. Such behavior is caused by the combination of the following factors:
+1. `Executors.newFixedThreadPool(...)`  uses `LinkedBlockingQueue` for executable tasks.
+2. `primeNumbers` are stored within synchronized LinkedList.
+3. `primeNumbersToRemove` are stored in synchronized LinkedList and accessed within `synchronized` block.
+
+```
+...
+    List<Integer> primeNumbers = Collections.synchronizedList(new LinkedList<>());
+    List<Integer> primeNumbersToRemove = Collections.synchronizedList(new LinkedList<>());
+    synchronized (primeNumbersToRemove) {
+    ...
+    }
+...
+```
+
+The following points for improvements could be made:
+1. `primeNumbers` is always accessed by a single thread, thus it might be a regular collection.
+2. `primeNumbersToRemove` is a `synchronizedList`, yet it's being modified within `synchronized(primeNumbersToRemove)` block, 
+making the application logically single-threaded in this area. We would've needed `synchronized` if we'd have been iterating over 
+`primeNumbersToRemove`, but we iterate over `primeNumbers` instead and perform only `add(...)` method, which uses mutex internally.
+```
+static class SynchronizedList<E> ... {
+   public void add(int index, E element) {
+      synchronized (mutex) {list.add(index, element);}
+   }
+...
+}
+```
+
+## 1.4 Analysis - conclusion
+Based on CPU, RAM and Lock analysis, we could make enhancements to the application: data structures, concurrency, application workflow.
+
+In order to sufficiently compare the performance, that'd be useful to understand how user would see it.
 
 # 2. Automation - benchmark for comparison between the solutions
 
-Java Profiling is useful for the investigation of application's behavior: resource (CPU / RAM / Heap / off-heap) consumption, allocation, state of threads.
-In context of performance, using this data, we might determine the factors that slow down application's execution, yet it wouldn't be highly useful when comparing performance of 2 different build from user perspective.
+Profiling of the application provides significant benefits while investigating its behavior: resource consumption (CPU / RAM / Heap / off-heap),
+object allocation, state of threads. Using the objectives made based on such analysis, developers could enhance application performance and stability.
 
-Instead of comparing CPU sampling data, that would be sufficient to compare the latency of operations within our business logic. That could be achieved in case a custom benchmark would be implemented.
+While being useful for the analysis, it might be hard to use profiling data to compare the performance of 2 (or more) versions of the application, since
+the majority of profilers use CPU sampling instead of wall-clock time. Instead, in order to determine performance of the application
+in different use-cases, we could use `benchmarking` - a programmatic way to configure, execute and measure useful work of business logic 
+from user perspective.
 
-## 2.1 Tools
-[JMH](https://github.com/openjdk/jmh) is a Java harness for building, running, and analysing nano/micro/milli/macro benchmarks written in Java and other languages targeting the JVM.
-Latest available JMH build (1.56) as of August 2022 had been taken. Source: https://mvnrepository.com/artifact/org.openjdk.jmh/jmh-core/1.35
+As an outcome from benchmarking, we'd retrieve numerical characteristics, which we could use to qualify and characterize the performance of different 
+versions of the app.
 
-We'd include 2 dependencies: JMH core (business logic) and JMH annotation processor (simplification of execution)
+## 2.1 Tool
+
+[Java Microbenchmark Harness (JMH)](https://github.com/openjdk/jmh) is a Java harness for building, running, and analysing
+nano/micro/milli/macro benchmarks written in Java and other languages targeting the JVM.
+
+Within the implementation, we'd use the following JMH-related dependencies:
+1. `jmh-core` - business logic of microbenchmark harness.
+2. `jmh-generator-annprocess` - annotation processor for simplified configuration and usage of JMH API.
+
 
 ## 2.2 Configuration
-The section describes core configuration options for the implemented automated solution - benchmark that uses JVM.
+The section describes core configuration options for the tool used within automation for performance tests - 
+[JMH](https://github.com/openjdk/jmh).
 
-# 2.1.1 Benchmark type
+### 2.2.1 JMH Benchmark mode
 JMH has the following modes of execution ([java doc](http://javadox.com/org.openjdk.jmh/jmh-core/0.8/org/openjdk/jmh/annotations/Mode.html)):
-* **Throughput** - measures the number of operations per second - number of times per second the method could be executed. Given the nature of the application (concurrent detect of numbers), that'd be better to focus on latency rather than throughput.
-* **Average time** - measures average time for a single execution. "Average" wouldn't be an efficient metric due to GC pauses. It would be much convenient to use percentiles.
-* **Sample time** - measures how long time it takes for the benchmark method to execute, including max, min time etc. A distribution of the values should be convenient for our case.
-* **Single shot time** - measures how long time a single benchmark method execution takes to run, which doesn't include JVM warm up. Given the nature of our application, a single method execution should be sufficient measurement.
-* **All** - runs all benchmark modes. This is mostly useful for internal JMH testing.
 
-The runtime of benchmark might include internment pauses, such as GC Stop The World event. Therefore, "average", which would include GC pauses, `SingleShotTime`:
-```
-Caveats for this mode include:
-- More warmup/measurement iterations are generally required.
-- Timers overhead might be significant if benchmarks are small; switch to SampleTime mode if that is a problem.
-```
+* **`Throughput`** - measures the number of operations per second - number of times per second the method could be executed. 
+Given the nature of the application (concurrent detection of prime numbers), that'd be better to focus on duration rather than throughput.
+* **`Average time`** - measures average time for a single execution. "Average" wouldn't be an efficient metric due to GC pauses. 
+It might be convenient for us to get a complete distribution of measurements (1st - 100th percentiles).
+* **`Sample time`** - measures how long time it takes for the benchmark method to execute, including max, min time etc. 
+Such distribution of the values should be convenient for our case.
+* **`Single shot time`** - measures how long time a single benchmark method execution takes to run, which doesn't include JVM warm up.
+Given the nature of our application, a single method execution should be sufficient measurement.
+* **`All`** - runs all benchmark modes. This is mostly useful for internal JMH testing due to significant overhead.
 
+Given all the above, `Sample time` mode would provide duration metrics, which we'd be able to use for the comparison of different `PrimeCalculator` versions.
+The distribution of such values (1st - 100th percentile) would allow us to have a precise comparison and omit the internment pauses during runtime.
 
-### 2.1.2 Warmup
-When benchmarking JVM applications, warmup provides a more stable results. Once class loading is complete, all classes used during the bootstrap are pushed onto JVM cache, which makes them faster at runtime, while other classes are loaded on per-request basis.
-The first invocation of application (in our case - prime numbers' fetcher) would be slower than the following ones. During the initial execution, additional time would be taken to lazy class loading and JIT.
-Thus, that'd be useful to cache all classes beforehand, thus they'd be instantly accessed at runtime. 
+### 2.1.2 Warmup iterations
+Given the fact `PrimeCalclator` is Java application, the first invocation of application would be slower than the following ones. 
+During the initial execution, additional time would be taken to lazy class loading and JIT.
+
+By having some amount of iterations that wouldn't be included into the measurement - "`warmup`", all classes would be 
+cached beforehand, thus they'd be instantly accessed at runtime during the primary phase of benchmark.
 
 ### 2.1.3 Avoiding dead code elimination by JVM
-JVM might detect that the result of the benchmarking method is not used anywhere. As a result, that'd apply optimizations.
-Consider the fact we'd want to focus on "real" use cases, that would provide insufficient results.
-JVM provides `Blackhole` object, which might be used as a consumer of the result. Therefore, we'd prevent JVM's optimization related to the unused code.
+
+While conducting performance experiments, that'd be useful to simulate the workload that's close to real-world scenario.
+
+In case the result of benchmarking method - `getPrimes(...)` - wouldn't be used anywhere, JVM would detect that and apply 
+a related optimizations, which would misleadingly affect performance measurements.
+
+In order to exclude such situations, JMH provides `Blackhole` object, which could be used as a consumer of the output of benchmarking method.
+That'd prevent an unwanted dead code elimination by JVM.
+
 ### 2.1.4 SetUp / TearDown
 Given the nature of the original method and the fact it generates sequence of the numbers on demand, no set up or tear down actions are needed.
 
 ## 2.2 Execution
-JVM options: `-Xms4096m -Xmx4096m`
-### 2.2.1 Original solution
+JVM options: `-Xms4096m -Xmx4096m -Xss1024k`
 
 
 # 3. Code enhancements
-1. isPrime(...) signature is insufficient. It could be replaced with boolean rather than throwing and handling exception.
+The section lists description of enhancements made to the code.
+
+## 3.1 Enhance "isPrime(...)" method
+```
+    private static void isPrime(List<Integer> primeNumbers, Integer candidate) throws Exception {
+        for (Integer j : primeNumbers.subList(0, candidate - 2)) {
+            if (candidate % j == 0) {
+                throw new Exception();
+            }
+        }
+    }
+```
+* Problem description: <CPU analysis>, <RAM analysis> (exceptions, sublist)
+* Replace subList(...) with for-loop. Odd numbers are eliminated from the loop.
+
+
+New:
+```
+    private static boolean isPrime(int number) {
+        ....
+        // sequentially check for other numbers
+        for (int i = 3; i < number; i+= 2) {
+            if (number % i == 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+```
 
 ## 3.1 Thread execution
-Regular thread pool has one queue. Each thread from the pool locks the queue, dequeue a task and remove the lock.
+```
+public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
+   ...
+   ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
+   ...
+}
+```
+`ThreadPoolExecutor` has one queue (`LinkedBlockingQueue`) of the tasks. 
+During execution, each worker thread locks the queue, dequeue a task and remove the lock.
 In case a task is short (non-IO-bound), there's a lot of contention within the queue.
-It's possible to use a lock-free solution, but it doesn't solve the problem entirely.
+An alternative would be the use of lock-free queue, however, that would result into different issues related to distribution of the tasks.
 
-In work-stealing techniques, each thread has its own queue. In case it runs out of tasks - it "steals" the tasks from other threads. Thus, the contention between threads is lower.
+In work-stealing techniques, each thread has its own queue. In case it runs out of tasks - it "steals" the tasks from other threads. 
+Thus, the contention between threads is lower.
+
+In Java, work stealing technique is implemented within [ForkJoin](https://docs.oracle.com/javase/tutorial/essential/concurrency/forkjoin.html) framework.
 
 One of these thread pool is Java is `newWorkStrealingPool`. It's worth to mention that there's 1 use case that makes it less efficient - synchronous I/O.
 In that case, the cores wouldn't be utilized, as the thread will be waiting for the I/O to finish. An alternative to that would be `ForkJoinPool`, since it keeps all threads within pool active at any given moment of time, which saturates CPU.
@@ -165,128 +321,17 @@ Based on different JVM implementations, `newWorkStrealingPool` might be a pre-co
 
 (!) Thread pool's capacity depends on the environment (cores, JVM limits for available processes, etc.). Assuming that'd be a part of server-side logic, instead of hard-coding the value or multiplies based on available cores, I'd let user specify it via configuration options.
 
-## [enhanced] for-loop optimization
-In for loop:
-```
-private static boolean isPrime(int number) {
-...
 
-        for (int i = 2; i < number; i++) {
-           ...
-        }
-...
-```
-We don't need to check even numbers. Thus, instead iterating one-by-one, we could iterate one-by-two.
-# 4. Issues
+# Existing algorithms
 
-## 1.1 Unable to start up JMG
-```
-Exception in thread "main" java.lang.RuntimeException: ERROR: Unable to find the resource: /META-INF/BenchmarkList
-```
+An alternative the enhancement of current approach would be usage of existing algorithms for determination of prime numbers.
 
-No matching benchmarks. Miss-spelled regexp?
-Use EXTRA verbose mode to debug the pattern matching.
-```aidl
-
-```
+An example of such algorithms is [Sieve of Eratosthenes](https://en.wikipedia.org/wiki/Sieve_of_Eratosthenes), which finds 
+prime numbers up to given limit. It's based on sequential identification of numbers that are divisible by primes.
 
 # Experiments
 System.out.println (standard output) had been excluded from measurement, since the ways to provide the results may vary (serialization, send over the wire, etc.)
 
-## 100, 500 - 1st enhanced implementation
-```
-        @Param({"100", "500"})
-
-Benchmark                                                                        (iterations)    Mode    Cnt    Score   Error  Units
-CalculatorBenchmark.runEnhancedBenchmark                                                  100  sample  16998    2.940 ± 0.010  ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.00                       100  sample           1.987          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.50                       100  sample           2.886          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.90                       100  sample           3.420          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.95                       100  sample           3.641          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.99                       100  sample           4.162          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.999                      100  sample           4.825          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.9999                     100  sample           7.289          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p1.00                       100  sample           8.471          ms/op
-CalculatorBenchmark.runEnhancedBenchmark                                                  500  sample   2250   22.235 ± 0.153  ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.00                       500  sample          12.796          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.50                       500  sample          22.249          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.90                       500  sample          24.248          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.95                       500  sample          25.166          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.99                       500  sample          29.734          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.999                      500  sample          33.735          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.9999                     500  sample          34.669          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p1.00                       500  sample          34.669          ms/op
-CalculatorBenchmark.runOriginalImplementation                                             100  sample  16854    2.966 ± 0.045  ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.00             100  sample           2.109          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.50             100  sample           2.920          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.90             100  sample           3.142          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.95             100  sample           3.265          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.99             100  sample           3.822          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.999            100  sample           6.754          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.9999           100  sample          82.662          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p1.00             100  sample         229.376          ms/op
-CalculatorBenchmark.runOriginalImplementation                                             500  sample   2263   22.115 ± 0.106  ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.00             500  sample          14.189          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.50             500  sample          22.151          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.90             500  sample          23.560          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.95             500  sample          24.445          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.99             500  sample          26.369          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.999            500  sample          29.614          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.9999           500  sample          30.507          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p1.00             500  sample          30.507          ms/op
-
-```
-
-Test with more steps -  @Param({"100", "1000", "2000"}):
-```
-CalculatorBenchmark.runEnhancedBenchmark                                                  100  sample  176391    0.283 ± 0.004  ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.00                       100  sample            0.121          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.50                       100  sample            0.236          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.90                       100  sample            0.309          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.95                       100  sample            0.516          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.99                       100  sample            0.946          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.999                      100  sample            4.940          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.9999                     100  sample           28.225          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p1.00                       100  sample           43.647          ms/op
-CalculatorBenchmark.runEnhancedBenchmark                                                 1000  sample  138966    0.360 ± 0.006  ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.00                      1000  sample            0.201          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.50                      1000  sample            0.295          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.90                      1000  sample            0.406          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.95                      1000  sample            0.598          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.99                      1000  sample            0.966          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.999                     1000  sample            7.901          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.9999                    1000  sample           37.581          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p1.00                      1000  sample           48.628          ms/op
-CalculatorBenchmark.runEnhancedBenchmark                                                 2000  sample   92922    0.538 ± 0.009  ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.00                      2000  sample            0.294          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.50                      2000  sample            0.435          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.90                      2000  sample            0.694          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.95                      2000  sample            0.837          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.99                      2000  sample            2.159          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.999                     2000  sample            9.866          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.9999                    2000  sample           24.720          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p1.00                      2000  sample          151.257          ms/op
-
-
-CalculatorBenchmark.runOriginalImplementation                                             100  sample   14349    3.483 ± 0.022  ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.00             100  sample            2.208          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.50             100  sample            3.265          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.90             100  sample            4.325          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.95             100  sample            4.792          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.99             100  sample            5.702          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.999            100  sample           12.780          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.9999           100  sample           27.199          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p1.00             100  sample           28.967          ms/op
-CalculatorBenchmark.runOriginalImplementation                                            1000  sample     570   87.950 ± 1.868  ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.00            1000  sample           43.713          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.50            1000  sample           84.935          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.90            1000  sample          106.693          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.95            1000  sample          110.625          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.99            1000  sample          121.694          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.999           1000  sample          126.747          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.9999          1000  sample          126.747          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p1.00            1000  sample          126.747          ms/op
-```
 
 # Thread count test
 Thread count test:
@@ -449,8 +494,30 @@ When trying to close the IDEA, it keeps trying to death the process as well - it
 After clicking "terminate", it tries to terminate the app, but didn't succeed.
 Afterwards, I click "cancel" and repeat the process. Afterwards, the project is successfully closed.
 
+## YourKit - allocation profiling issue
+Allocation profiling is started within YourKit, yet no related data is shown.
+![img_11.png](img_11.png)
 
+Port statistics:
+```
+$ lsof -i :10001
+COMMAND    PID          USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+profiler 16735 andreykoltsov   27u  IPv6 0xd62e9a0c1d349b07      0t0  TCP localhost:58978->localhost:scp-config (ESTABLISHED)
+java     16833 andreykoltsov    9u  IPv4 0xd62e9a0c22a56627      0t0  TCP localhost:scp-config (LISTEN)
+java     16833 andreykoltsov   37u  IPv4 0xd62e9a0c1aa0fa57      0t0  TCP localhost:scp-config->localhost:58978 (ESTABLISHED)
+```
+Once memory snapshot is captured, all object don't have any allocation information.
+![img_12.png](img_12.png)
 
+Allocation profiling configuration:
+![img_13.png](img_13.png)
+
+It seems that each object had been recorded, yet memory snapshot contains mostly unreachable objects with unknown allocations.
+
+On Windows with 60k primes as an input, allocation profiling worked, but when I've tried to capture memory snapshot, 
+the following message appeared, yet application was still running:
+![img_14.png](img_14.png)
+Allocation profiling with 60k and Thread.sleep(10000) in order to start allocation profiling
 
 # Execution of tests results - new Aug 6th - Windows laptop
 
@@ -503,7 +570,6 @@ CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.99 
 CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.999          10000  sample         13019,120             ms/op
 CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.9999         10000  sample         13019,120             ms/op
 CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p1.00           10000  sample         13019,120             ms/op
-...
 ```
 
 ## Experiment - exceptions
@@ -690,7 +756,7 @@ CalculatorBenchmark.runOriginalImplementation                                   
 
 # Visualization
 In order to simplify the comparison, automation for the visualization of JMH measurements had been implemented.
-
+![img_10.png](img_10.png)
 Please, refer to [visualization](visualization)
 
 # Further enhancements
