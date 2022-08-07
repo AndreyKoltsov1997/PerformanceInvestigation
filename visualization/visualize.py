@@ -103,6 +103,8 @@ def plot_files_via_dict(datasource_path: str, percentile: int) -> None:
     plt.xlabel('Sample size')
     plt.ylabel('Score, ms/op')
     plt.legend(loc='upper center')
+    # plt.yscale('log')
+
     plt.show()
 
 
