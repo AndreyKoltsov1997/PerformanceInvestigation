@@ -37,7 +37,7 @@ class BigIntegerIterator {
 
 public class PrimeCalculator {
     public static void main(String[] args) throws InterruptedException, IOException, RunnerException {
-        PrimeCalculator.getPrimes(Integer.parseInt(args[0]));
+        System.out.println(PrimeCalculatorSieveOfEratosthenes.getPrimes(Integer.parseInt(args[0])));
 //        ThreadSupportTest.checkHowManyThreadsJvmCouldHave();
 //        Options opt = new OptionsBuilder()
 //                // -- benchmark that'd be ran
