@@ -8,6 +8,7 @@ public class PrimeCalculatorSieveOfEratosthenes {
 
     /**
      * Determines prime numbers from range [2; maxPrime].
+     *
      * @param maxPrime - upper bound of target prime number sequence
      * @return list of prime numbers from range [2; maxPrime]
      */
@@ -25,7 +26,7 @@ public class PrimeCalculatorSieveOfEratosthenes {
             }
             primeNumbers.add(number);
             // -- iterate over multipliers of numbers, e.g.: [2, 4, 6, 8, ...]
-            for(int multiplier = number*2; multiplier <= maxPrime; multiplier += number) {
+            for (int multiplier = number * 2; multiplier <= maxPrime; multiplier += number) {
                 // -- mark all multipliers of prime number as composite
                 tableOfNums[multiplier] = false;
             }
