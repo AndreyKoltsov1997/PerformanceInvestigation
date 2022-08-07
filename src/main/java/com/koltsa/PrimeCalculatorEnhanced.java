@@ -13,9 +13,8 @@ public class PrimeCalculatorEnhanced {
      * @throws InterruptedException
      */
     public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
-        ExecutorService executors = Executors.newWorkStealingPool();
-
-        // TODO: handle exception when native thread couldn't be created
+        final int cores = Runtime.getRuntime().availableProcessors();
+        ExecutorService executors = Executors.newWorkStealingPool(cores);
 
         ConcurrentLinkedQueue<Integer> primeNumbersQueue = new ConcurrentLinkedQueue<>();
         // "maxprime-2" since we start from 2

@@ -107,7 +107,6 @@ public class PrimeCalculator {
     private static void isPrime(List<Integer> primeNumbers, Integer candidate) throws Exception {
         for (Integer j : primeNumbers.subList(0, candidate - 2)) {
             if (candidate % j == 0) {
-                // TODO: Change "Exception" to boolean
                 throw new Exception();
             }
         }

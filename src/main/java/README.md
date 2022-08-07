@@ -265,14 +265,53 @@ JVM options: `-Xms4096m -Xmx4096m -Xss1024k`
 
 
 # 3. Code enhancements
-1. isPrime(...) signature is insufficient. It could be replaced with boolean rather than throwing and handling exception.
+The section lists description of enhancements made to the code.
+
+## 3.1 Enhance "isPrime(...)" method
+```
+    private static void isPrime(List<Integer> primeNumbers, Integer candidate) throws Exception {
+        for (Integer j : primeNumbers.subList(0, candidate - 2)) {
+            if (candidate % j == 0) {
+                throw new Exception();
+            }
+        }
+    }
+```
+* Problem description: <CPU analysis>, <RAM analysis> (exceptions, sublist)
+* Replace subList(...) with for-loop. Odd numbers are eliminated from the loop.
+
+
+New:
+```
+    private static boolean isPrime(int number) {
+        ....
+        // sequentially check for other numbers
+        for (int i = 3; i < number; i+= 2) {
+            if (number % i == 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+```
 
 ## 3.1 Thread execution
-Regular thread pool has one queue. Each thread from the pool locks the queue, dequeue a task and remove the lock.
+```
+public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
+   ...
+   ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
+   ...
+}
+```
+`ThreadPoolExecutor` has one queue (`LinkedBlockingQueue`) of the tasks. 
+During execution, each worker thread locks the queue, dequeue a task and remove the lock.
 In case a task is short (non-IO-bound), there's a lot of contention within the queue.
-It's possible to use a lock-free solution, but it doesn't solve the problem entirely.
+An alternative would be the use of lock-free queue, however, that would result into different issues related to distribution of the tasks.
 
-In work-stealing techniques, each thread has its own queue. In case it runs out of tasks - it "steals" the tasks from other threads. Thus, the contention between threads is lower.
+In work-stealing techniques, each thread has its own queue. In case it runs out of tasks - it "steals" the tasks from other threads. 
+Thus, the contention between threads is lower.
+
+In Java, work stealing technique is implemented within [ForkJoin](https://docs.oracle.com/javase/tutorial/essential/concurrency/forkjoin.html) framework.
 
 One of these thread pool is Java is `newWorkStrealingPool`. It's worth to mention that there's 1 use case that makes it less efficient - synchronous I/O.
 In that case, the cores wouldn't be utilized, as the thread will be waiting for the I/O to finish. An alternative to that would be `ForkJoinPool`, since it keeps all threads within pool active at any given moment of time, which saturates CPU.
@@ -282,128 +321,10 @@ Based on different JVM implementations, `newWorkStrealingPool` might be a pre-co
 
 (!) Thread pool's capacity depends on the environment (cores, JVM limits for available processes, etc.). Assuming that'd be a part of server-side logic, instead of hard-coding the value or multiplies based on available cores, I'd let user specify it via configuration options.
 
-## [enhanced] for-loop optimization
-In for loop:
-```
-private static boolean isPrime(int number) {
-...
-
-        for (int i = 2; i < number; i++) {
-           ...
-        }
-...
-```
-We don't need to check even numbers. Thus, instead iterating one-by-one, we could iterate one-by-two.
-# 4. Issues
-
-## 1.1 Unable to start up JMG
-```
-Exception in thread "main" java.lang.RuntimeException: ERROR: Unable to find the resource: /META-INF/BenchmarkList
-```
-
-No matching benchmarks. Miss-spelled regexp?
-Use EXTRA verbose mode to debug the pattern matching.
-```aidl
-
-```
 
 # Experiments
 System.out.println (standard output) had been excluded from measurement, since the ways to provide the results may vary (serialization, send over the wire, etc.)
 
-## 100, 500 - 1st enhanced implementation
-```
-        @Param({"100", "500"})
-
-Benchmark                                                                        (iterations)    Mode    Cnt    Score   Error  Units
-CalculatorBenchmark.runEnhancedBenchmark                                                  100  sample  16998    2.940 ± 0.010  ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.00                       100  sample           1.987          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.50                       100  sample           2.886          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.90                       100  sample           3.420          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.95                       100  sample           3.641          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.99                       100  sample           4.162          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.999                      100  sample           4.825          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.9999                     100  sample           7.289          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p1.00                       100  sample           8.471          ms/op
-CalculatorBenchmark.runEnhancedBenchmark                                                  500  sample   2250   22.235 ± 0.153  ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.00                       500  sample          12.796          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.50                       500  sample          22.249          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.90                       500  sample          24.248          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.95                       500  sample          25.166          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.99                       500  sample          29.734          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.999                      500  sample          33.735          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.9999                     500  sample          34.669          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p1.00                       500  sample          34.669          ms/op
-CalculatorBenchmark.runOriginalImplementation                                             100  sample  16854    2.966 ± 0.045  ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.00             100  sample           2.109          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.50             100  sample           2.920          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.90             100  sample           3.142          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.95             100  sample           3.265          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.99             100  sample           3.822          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.999            100  sample           6.754          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.9999           100  sample          82.662          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p1.00             100  sample         229.376          ms/op
-CalculatorBenchmark.runOriginalImplementation                                             500  sample   2263   22.115 ± 0.106  ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.00             500  sample          14.189          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.50             500  sample          22.151          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.90             500  sample          23.560          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.95             500  sample          24.445          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.99             500  sample          26.369          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.999            500  sample          29.614          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.9999           500  sample          30.507          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p1.00             500  sample          30.507          ms/op
-
-```
-
-Test with more steps -  @Param({"100", "1000", "2000"}):
-```
-CalculatorBenchmark.runEnhancedBenchmark                                                  100  sample  176391    0.283 ± 0.004  ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.00                       100  sample            0.121          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.50                       100  sample            0.236          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.90                       100  sample            0.309          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.95                       100  sample            0.516          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.99                       100  sample            0.946          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.999                      100  sample            4.940          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.9999                     100  sample           28.225          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p1.00                       100  sample           43.647          ms/op
-CalculatorBenchmark.runEnhancedBenchmark                                                 1000  sample  138966    0.360 ± 0.006  ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.00                      1000  sample            0.201          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.50                      1000  sample            0.295          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.90                      1000  sample            0.406          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.95                      1000  sample            0.598          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.99                      1000  sample            0.966          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.999                     1000  sample            7.901          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.9999                    1000  sample           37.581          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p1.00                      1000  sample           48.628          ms/op
-CalculatorBenchmark.runEnhancedBenchmark                                                 2000  sample   92922    0.538 ± 0.009  ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.00                      2000  sample            0.294          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.50                      2000  sample            0.435          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.90                      2000  sample            0.694          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.95                      2000  sample            0.837          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.99                      2000  sample            2.159          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.999                     2000  sample            9.866          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p0.9999                    2000  sample           24.720          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark·p1.00                      2000  sample          151.257          ms/op
-
-
-CalculatorBenchmark.runOriginalImplementation                                             100  sample   14349    3.483 ± 0.022  ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.00             100  sample            2.208          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.50             100  sample            3.265          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.90             100  sample            4.325          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.95             100  sample            4.792          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.99             100  sample            5.702          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.999            100  sample           12.780          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.9999           100  sample           27.199          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p1.00             100  sample           28.967          ms/op
-CalculatorBenchmark.runOriginalImplementation                                            1000  sample     570   87.950 ± 1.868  ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.00            1000  sample           43.713          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.50            1000  sample           84.935          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.90            1000  sample          106.693          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.95            1000  sample          110.625          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.99            1000  sample          121.694          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.999           1000  sample          126.747          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p0.9999          1000  sample          126.747          ms/op
-CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation·p1.00            1000  sample          126.747          ms/op
-```
 
 # Thread count test
 Thread count test:
