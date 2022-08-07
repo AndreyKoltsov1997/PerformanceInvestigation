@@ -1,9 +1,25 @@
-# Plan
+# Contents
+1. [Overview](#1-overview)
 
-1. Describe issues based on CPU and Memory analysis.
-2. Create microbenchmark to simplify the comparison between the solutions.
-3. Add code changes that'd enhance the performance.
+# 1. Overview
+Investigating the performance of calculator of prime numbers using [YourKit](https://www.yourkit.com) Java profiler.
 
+The repository contains original code sample, YourKit's CPU and Allocation profiling data, its analysis and code enhancements.
+
+In order to compare different solutions, performance tests have been automated using [Java Microbenchmark Harness (JMH)](https://github.com/openjdk/jmh).
+In order to simplify comparison between the builds, automation for [visualization of JMH results](visualization) have been implemented.
+
+## 1.1 Prerequisites
+
+- `JRE 8`
+- `(optional) YourKit Java Profiler` - visualization of CPU / allocation samples.
+- `(optional) Python 3` - visualization of results.
+
+# 1.2 How to run test
+```
+./gradlew jmh
+```
+The results would be available at `build/results/jmh/results.txt`.
 
 # 1. Set up 
 YourTrack had been used via Intellij IDEA. The IntelliJ's run method had been excluded from profiling.
@@ -312,18 +328,58 @@ In work-stealing techniques, each thread has its own queue. In case it runs out 
 Thus, the contention between threads is lower.
 
 In Java, work stealing technique is implemented within [ForkJoin](https://docs.oracle.com/javase/tutorial/essential/concurrency/forkjoin.html) framework.
+`ForkJoinPool`, according to documentation, keeps given amount of threads **active** at any moment of time.
+We could create a pool with ForkJoin work stealing model via `newWorkStrealingPool(...)` method. Unlike `ForkJoinPool.commonPool(...)`, 
+it creates an asynchronous thread pool with first-in-first-out (FIFO) queue configuration, which reduces contention between idle workers.
 
-One of these thread pool is Java is `newWorkStrealingPool`. It's worth to mention that there's 1 use case that makes it less efficient - synchronous I/O.
-In that case, the cores wouldn't be utilized, as the thread will be waiting for the I/O to finish. An alternative to that would be `ForkJoinPool`, since it keeps all threads within pool active at any given moment of time, which saturates CPU.
-Considering the context of this task, we don't expect any synchronous I/O, thus `newWorkStealingPool` should be sufficient.
+As a result, the code had been changed to the following:
+```
+    public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
+         ...
+        final int cores = Runtime.getRuntime().availableProcessors();
+        ExecutorService executors = Executors.newWorkStealingPool(cores);
 
-Based on different JVM implementations, `newWorkStrealingPool` might be a pre-configured `ForkJoinPool`.
+...
+}
+```
 
-(!) Thread pool's capacity depends on the environment (cores, JVM limits for available processes, etc.). Assuming that'd be a part of server-side logic, instead of hard-coding the value or multiplies based on available cores, I'd let user specify it via configuration options.
+**A note on concurrency level**: by default, I'm using the amount of available processors as a concurrency level here. However,
+assuming the algorithm would be a part of server-side logic, instead of hard-coding the value, I'd let user set it via configuration options.
+Thus, in case the application would be launched in different, shared environments, such as `Kubernetes` cluster, the user would be able to
+implicitly define concurrency level.
+
+## Redundant use of BigIntegerIterator
+As stated in both CPU and Heap analysis, given the fact we use 2 collections within each `BigIntegerIterator` instance, as well as 
+keeping separate collection with all non-prime numbers that have to be removed (`primeNumbersToRemove`), we introduce significant CPU / RAM
+pressure and, therefore, performance penalty.
+
+With that regard, the following enhancements have been made:
+- `BigIntegerIterator` class had been eliminated.
+- Generation of Collection containing all integers from range `[2; maxPrime]` prior to determination of prime numbers 
+had been replaced with a simple for-loop.
+- Separate collection for non-prime numbers had been eliminated. Now, we store only prime numbers, which would be used as a return value.
+```
+public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
+        ...
+        ConcurrentLinkedQueue<Integer> primeNumbersQueue = new ConcurrentLinkedQueue<>();
+        CountDownLatch latch = new CountDownLatch(maxPrime - 2);
+        for (int i = 2; i <= maxPrime; i++) {
+            // final efficiency requirement
+            final int candidate = i;
+            executors.submit(() -> {
+                if (isPrime(candidate)) {
+                    primeNumbersQueue.add(candidate);
+                }
+                latch.countDown();
+            });
+        }
+        ...
+        return Arrays.asList(primeNumbersQueue.toArray(new Integer[0]));
+}
+```
 
 
 # Existing algorithms
-
 An alternative the enhancement of current approach would be usage of existing algorithms for determination of prime numbers.
 
 An example of such algorithms is [Sieve of Eratosthenes](https://en.wikipedia.org/wiki/Sieve_of_Eratosthenes), which finds 
@@ -675,6 +731,7 @@ CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.999          
 CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.9999         10000  sample          8,520          ms/op
 CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p1.00           10000  sample          8,520          ms/op
 ```
+
 ## Experiment - fixed thread pool
 Reduced threads within pool 
 Code:
@@ -760,4 +817,5 @@ In order to simplify the comparison, automation for the visualization of JMH mea
 Please, refer to [visualization](visualization)
 
 # Further enhancements
-It's possible to automate the profiling via CLI solutions, such as async profiler.
+- It's possible to automate the profiling via CLI solutions, such as async profiler.
+- JMH results could be exported in a convinient file format, for example: CSV. We could leverage that for visualization purposes.
