@@ -77,12 +77,82 @@ contention within the queue is unavoidable.
  ...
 ```
 
-![img_9.png](img_9.png)
 
 
-## 1.2 Heap analysis
-Heap usage is insufficient for such application.
-![img_4.png](img_4.png)
+## 1.2 Heap analysis - 50,000 numbers, 50,000 threads
+
+Heap usage had been analyzed using allocation profiling. On macOS, I wasn't able to get allocation data due to unknown allocation info (TODO: add link).
+In order to capture all allocation and be able to turn on "allocation profiling" within YourTrack, I've added an extra sleep
+prior to execution of the method.
+```
+public static void main(String[] args) throws InterruptedException, IOException, RunnerException {
+Thread.sleep(30000);
+...
+}
+```
+
+
+![img_15.png](img_15.png)
+Looking at [snapshots/allocation/60k-allocation-profiling-original.csv](snapshots/allocation/60k-allocation-profiling-original.csv), the following 
+observations could be made:
+1. **Redundant use of `BigIntegerIterator`**. We generate [2; maxPrime] instances of `BigIntegerIterator` and append it onto Collection.
+The following aspects could be retrieved from the issue: (a) `BigIntegerIterator` contains two collection with excessive initial capacity - 500 elements, while
+we append at-most 1 element to it; (b) we don't need two separate collections to store Integer values (`reference`) and its string
+representatives (`contain`); (c) `BigIntegerIterator` class is redundant - it could be replaced by operations with the collection itself.
+```
+class BigIntegerIterator {
+    private final List<String> contain = new ArrayList<>(500);
+    private final List<Integer> reference = new ArrayList<>(500);
+    ...
+}
+...
+List<BigIntegerIterator> myFiller = Stream.generate(new Supplier<BigIntegerIterator>() {
+            ...
+            @Override
+            public BigIntegerIterator get() {
+                return new BigIntegerIterator(i++);
+            }
+        }).limit(maxPrime).collect(Collectors.toList());
+```
+
+2. **Creation of Runnable tasks**. Given the nature of the application - concurrent determination of prime numbers - the creation
+of such objects is reasonable. Yet, as stated within CPU profiling (TODO: add reference), concurrency level and thread pool implementation
+could be changed.
+3. Conversion of `String` to `Integer`. As stated in (1), there's no need to store integer value and its string representative separately.
+Thus, this part of the code could be eliminated.
+4. Creation of Lambda for executor service task. As stated in (2), given the concurrency nature of the application, it's reasonable to 
+have such objects within heap.
+5. **Creation of sublist and iteration over it.** The logic for prime numbers determination creates sublist of dividers for prime 
+number candidates. Given the fact we know the bounds of the range for potential candidates, there's no need to 
+generate a separate collection for it at each call of `isPrime(...)`.
+```
+private static void isPrime(List<Integer> primeNumbers, Integer candidate) throws Exception {
+        for (Integer j : primeNumbers.subList(0, candidate - 2)) {
+            if (candidate % j == 0) {
+                throw new Exception();
+            }
+        }
+...
+}
+```
+6. **Creation of `Exception` in order to create application workflow**. As stated in "CPU" section, that could be eliminated. As stated within CPU profiling (TODO: add reference),
+   the use of Exceptions is redundant, especially considering performance affection it causes via additional CPU and Heap pressure.
+   Generation of `Exceptions` instances could be replaced with returning a primitive `boolean` value from `isPrime(...)`.
+
+7. **Excessive concurrency level**. Original implementation assumes at least 3000 threads within the pool would be created.
+Depends on the environment, it might lead to excessive use of RAM (thread stacks) and native OS threads. As a result, in multiple environments,
+such approach would lead to Java `OutOfMemoryError` due to inability to create a new thread.
+```
+ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
+...
+java.lang.OutOfMemoryError: unable to create new native thread
+```
+
+Excessive allocation of objects could be found in:
+
+
+* **Creation of excessive threads**. each thread occupies stack, but we could reduce concurrency. Leads to OOM.
+
 
 ## 1.3 Lock analysis
 ### 1.3.1 Redundant synchronization
@@ -104,42 +174,6 @@ it leads to excessive context switching.
 ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
 ...
 ```
-
-## 1.4 RAM Analysis
-
-* Enabled Memory Snapshot capturing along with allocation profiling.
-* Significant heap space is used due to excessive allocation of objects.
-* ![img_7.png](img_7.png)
-Excessive allocation of objects could be found in:
-* BigInteger iterator. The collection could be populated without this object. The class could be removed. Not to mention the initial allocation of ArrayList size within the class - 500 might be insufficient, however, it's relatively small number for most of the machines.
-```
-        List<BigIntegerIterator> myFiller = Stream.generate(new Supplier<BigIntegerIterator>() {
-            ...
-        }).limit(maxPrime).collect(Collectors.toList());
-
-        for (BigIntegerIterator integer : myFiller) {
-            primeNumbers.add(integer.getContain());
-        }
-        ...
-        
-```
-* Exceptions. As stated in "CPU" section, that could be eliminated.
-```
-private static void isPrime(List<Integer> primeNumbers, Integer candidate) throws Exception {
-        for (Integer j : primeNumbers.subList(0, candidate - 2)) {
-            if (candidate % j == 0) {
-                throw new Exception();
-            }
-...
-            
-```
-* subList(...) method
-```
-    private static void isPrime(List<Integer> primeNumbers, Integer candidate) throws Exception {
-        for (Integer j : primeNumbers.subList(0, candidate - 2)) {
-        ...
-```
-
 
 # 2. Automation - benchmark for comparison between the solutions
 
@@ -186,7 +220,7 @@ JVM provides `Blackhole` object, which might be used as a consumer of the result
 Given the nature of the original method and the fact it generates sequence of the numbers on demand, no set up or tear down actions are needed.
 
 ## 2.2 Execution
-JVM options: `-Xms4096m -Xmx4096m`
+JVM options: `-Xms4096m -Xmx4096m -Xss1024k`
 ### 2.2.1 Original solution
 
 
@@ -492,8 +526,30 @@ When trying to close the IDEA, it keeps trying to death the process as well - it
 After clicking "terminate", it tries to terminate the app, but didn't succeed.
 Afterwards, I click "cancel" and repeat the process. Afterwards, the project is successfully closed.
 
+## YourKit - allocation profiling issue
+Allocation profiling is started within YourKit, yet no related data is shown.
+![img_11.png](img_11.png)
 
+Port statistics:
+```
+$ lsof -i :10001
+COMMAND    PID          USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+profiler 16735 andreykoltsov   27u  IPv6 0xd62e9a0c1d349b07      0t0  TCP localhost:58978->localhost:scp-config (ESTABLISHED)
+java     16833 andreykoltsov    9u  IPv4 0xd62e9a0c22a56627      0t0  TCP localhost:scp-config (LISTEN)
+java     16833 andreykoltsov   37u  IPv4 0xd62e9a0c1aa0fa57      0t0  TCP localhost:scp-config->localhost:58978 (ESTABLISHED)
+```
+Once memory snapshot is captured, all object don't have any allocation information.
+![img_12.png](img_12.png)
 
+Allocation profiling configuration:
+![img_13.png](img_13.png)
+
+It seems that each object had been recorded, yet memory snapshot contains mostly unreachable objects with unknown allocations.
+
+On Windows with 60k primes as an input, allocation profiling worked, but when I've tried to capture memory snapshot, 
+the following message appeared, yet application was still running:
+![img_14.png](img_14.png)
+Allocation profiling with 60k and Thread.sleep(10000) in order to start allocation profiling
 
 # Execution of tests results - new Aug 6th - Windows laptop
 
@@ -546,7 +602,6 @@ CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.99 
 CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.999          10000  sample         13019,120             ms/op
 CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.9999         10000  sample         13019,120             ms/op
 CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p1.00           10000  sample         13019,120             ms/op
-...
 ```
 
 ## Experiment - exceptions
