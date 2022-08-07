@@ -66,7 +66,7 @@ def __get_jmh_measurement_matching_criteria(measurements: list[BenchmarkMeasurem
     return samples[0]
 
 
-def __get_jmh_measurements_from_file(file_path: str) -> dict:
+def __get_jmh_measurements_from_plain_txt_file(file_path: str) -> dict:
     """
     Parses file that contains JMH measurements.
     :param file_path: - path to file with measurements
@@ -75,12 +75,12 @@ def __get_jmh_measurements_from_file(file_path: str) -> dict:
     data = defaultdict(list)
 
     with open(file_path) as file:
-        data = test(file, False)
+        data = __get_jmh_measurements_from_reader_object(reader_obj=file, is_csv=False)
 
     return data
 
 
-def test(reader_obj, is_csv: bool):
+def __get_jmh_measurements_from_reader_object(reader_obj, is_csv: bool):
     data = defaultdict(list)
 
     for line in reader_obj:
@@ -108,11 +108,11 @@ def __get_jmh_measurements_from_csv_file(file_path: str) -> dict:
 
     with open(file_path) as file:
         reader_obj = csv.reader(file)
-        data = test(reader_obj, False)
+        data = __get_jmh_measurements_from_reader_object(reader_obj=reader_obj, is_csv=True)
     return data
 
 
-def plot_jmh_measurements(datasource_path: str, percentile: int, is_plain_text: bool = True) -> None:
+def plot_jmh_measurements(datasource_path: str, percentile: int, is_plain_text: bool = False) -> None:
     """
     1. Parses files from given folders and retrieves JMH measurements.
     2. Plots measurements based on parsed data.
@@ -126,7 +126,7 @@ def plot_jmh_measurements(datasource_path: str, percentile: int, is_plain_text: 
     for file in os.listdir(folder):
         filename_decoded = file.decode('utf-8')
         filepath = f"{datasource_path}/{filename_decoded}"
-        fname_with_plottable_data[filename_decoded] = __get_jmh_measurements_from_file(filepath) if is_plain_text else __get_jmh_measurements_from_csv_file(filepath)
+        fname_with_plottable_data[filename_decoded] = __get_jmh_measurements_from_plain_txt_file(filepath) if is_plain_text else __get_jmh_measurements_from_csv_file(filepath)
     
     # -- Visualize Data
     for filename, sample_size_to_jmh_data in fname_with_plottable_data.items():
@@ -148,7 +148,7 @@ def plot_jmh_measurements(datasource_path: str, percentile: int, is_plain_text: 
 def main(argv):
     try:
         # -- parse CLI options
-        opts, args = getopt.getopt(argv, 'hd:p:', ['directory=', 'percentile='])
+        opts, args = getopt.getopt(argv, 'hd:p:i:', ['directory=', 'percentile=', 'is_plain_text='])
         print(opts)
         if not opts:
             raise getopt.GetoptError('Not enough arguments.')
@@ -157,9 +157,10 @@ def main(argv):
         sys.exit(2)
     
     # -- actions based on CLI options
-    usage = 'python3 visualize.py -d <source directory> -p <percentile>'
+    usage = 'python3 visualize.py -d <source directory> -p <percentile> -u <(optional> parse plain text>'
     source_directory = ''
     target_percentile = ''
+    should_parse_plain_txt = False
     for opt, arg in opts:
         if opt == '-h':
             print(usage)
@@ -168,12 +169,16 @@ def main(argv):
             target_percentile = arg
         elif opt == '-d':
             source_directory = arg
+        elif opt == '-i':
+            # plain text specified
+            should_parse_plain_txt = True
+
     
     # -- print 95th percentile by default
     target_percentile = int(target_percentile) if target_percentile else 95
     if not source_directory:
         raise ValueError(f"Source directory not specified. \n {usage}")
-    plot_jmh_measurements(source_directory, target_percentile)
+    plot_jmh_measurements(source_directory, target_percentile, should_parse_plain_txt)
 
 
 if __name__ == "__main__":

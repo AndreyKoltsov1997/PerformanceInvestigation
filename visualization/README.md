@@ -7,6 +7,9 @@ Automation for visualization of benchmark results captured via Java Microbenchma
 | --- | --- | --- | ------------- |
 | `directory` | `-d` | `string` | Directory with text files containing JMH results. |
 | `percentile` | `-p` | `int` | Target percentile for the visualization. |
+| `is_plain_text` | `-i` | `boolean` | If specified, plain text (JMH results) would be parsed, otherwise CSV. |
+
+
 
 # Requirements
 * Python 3
