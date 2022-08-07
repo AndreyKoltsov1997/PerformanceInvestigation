@@ -23,16 +23,6 @@ class BenchmarkMeasurement:
 def __get_jmh_measurement_from_csv_line(csv_elements: list) -> BenchmarkMeasurement:
     # "Benchmark","Mode","Threads","Samples","Score","Score Error (99,9%)","Unit","Param: maxPrimeNumber"
 
-    # "benchmark.jmh.CalculatorBenchmark.runEnhancedBenchmarkSieveOfEratoshenes:runEnhancedBenchmarkSieveOfEratoshenes·p0.00",
-    # "sample",
-    # 1,
-    # 1,
-    # "0,002200",
-    # NaN,
-    # "ms/op",
-    # 1000
-    # raise Exception(f"payload is: {payload}")
-    # 5 - minimal amount of elements within valuable payload
     if len(csv_elements) < 5:
         return None
 
@@ -42,7 +32,7 @@ def __get_jmh_measurement_from_csv_line(csv_elements: list) -> BenchmarkMeasurem
     return BenchmarkMeasurement(sample_size=csv_elements[7], percentile=f"{percentile}th", value=csv_elements[4], measurement=csv_elements[6])
 
 
-def __get_jmh_measurement_from_line(line: str, delimiter: str = ',') -> BenchmarkMeasurement:
+def __get_jmh_measurement_from_line(line: str) -> BenchmarkMeasurement:
     """
     Example of line: ...
     # CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.95   1000  sample   1,217   ms/op
@@ -50,7 +40,7 @@ def __get_jmh_measurement_from_line(line: str, delimiter: str = ',') -> Benchmar
     :param line: - raw output of JMH
     :returns: BenchmarkMeasurement instance
     """
-    payload = line.split(delimiter)
+    payload = line.split()
     print(payload)
     # 5 - minimal amount of elements within valuable payload
     if len(payload) < 5:
@@ -76,7 +66,7 @@ def __get_jmh_measurement_matching_criteria(measurements: list[BenchmarkMeasurem
     return samples[0]
 
 
-def __get_jmh_measurements_from_file(file_path: str, is_plain_text: bool = False) -> dict:
+def __get_jmh_measurements_from_file(file_path: str) -> dict:
     """
     Parses file that contains JMH measurements.
     :param file_path: - path to file with measurements
@@ -85,18 +75,27 @@ def __get_jmh_measurements_from_file(file_path: str, is_plain_text: bool = False
     data = defaultdict(list)
 
     with open(file_path) as file:
-        for line in file:
-            try:
-                # jmh_measurement = __get_jmh_measurement_from_line(line) if is_plain_text else __get_jmh_measurement_from_csv_line(line)
-                jmh_measurement = __get_jmh_measurement_from_csv_line(line)
+        data = test(file, False)
 
-            except Exception as e:
-                print(f"Unable to parse line: {line} \n {e}")
-                continue
-            
-            if not jmh_measurement:
-                continue
-            data[jmh_measurement.sample_size].append(jmh_measurement)
+    return data
+
+
+def test(reader_obj, is_csv: bool):
+    data = defaultdict(list)
+
+    for line in reader_obj:
+        try:
+            jmh_measurement = __get_jmh_measurement_from_csv_line(line) if is_csv else __get_jmh_measurement_from_line(line)
+
+        except Exception as e:
+            print(f"Unable to parse line: {line} \n {e}")
+            continue
+        
+        if not jmh_measurement:
+            continue
+        print(f"debug jmh_measurement: {jmh_measurement.value}")
+        data[jmh_measurement.sample_size].append(jmh_measurement)
+
     return data
 
 def __get_jmh_measurements_from_csv_file(file_path: str) -> dict:
@@ -109,20 +108,11 @@ def __get_jmh_measurements_from_csv_file(file_path: str) -> dict:
 
     with open(file_path) as file:
         reader_obj = csv.reader(file)
-        for line in reader_obj:
-            try:
-                jmh_measurement = __get_jmh_measurement_from_csv_line(line)
-
-            except Exception as e:
-                print(f"Unable to parse line: {line} \n {e}")
-                continue
-            
-            if not jmh_measurement:
-                continue
-            data[jmh_measurement.sample_size].append(jmh_measurement)
+        data = test(reader_obj, False)
     return data
 
-def plot_jmh_measurements(datasource_path: str, percentile: int, is_plain_text: bool = False) -> None:
+
+def plot_jmh_measurements(datasource_path: str, percentile: int, is_plain_text: bool = True) -> None:
     """
     1. Parses files from given folders and retrieves JMH measurements.
     2. Plots measurements based on parsed data.
