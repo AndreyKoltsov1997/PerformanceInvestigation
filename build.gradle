@@ -17,6 +17,9 @@ dependencies {
 
     // https://mvnrepository.com/artifact/org.openjdk.jmh/jmh-generator-annprocess
     implementation group: 'org.openjdk.jmh', name: 'jmh-generator-annprocess', version: '1.35'
+
+    // prevents JMH's "missing /META-INF/BenchmarkList" error
+    jmhAnnotationProcessor 'org.openjdk.jmh:jmh-generator-annprocess:1.35'
 }
 
 sourceSets {
@@ -33,5 +36,4 @@ jmh {
 
     resultFormat = 'csv'
     resultsFile = file('build/reports/benchmarks.csv')
-
 }

@@ -592,18 +592,12 @@ Starting from ~5000, on my macbook, I observed inability to create new thread (2
 Exception in thread "main" java.lang.OutOfMemoryError: unable to create new native thread
 	at java.lang.Thread.$$YJP$$start0(Native Method)
 	at java.lang.Thread.start0(Thread.java)
-	at java.lang.Thread.start(Thread.java:719)
-	at java.util.concurrent.ThreadPoolExecutor.addWorker(ThreadPoolExecutor.java:957)
-	at java.util.concurrent.ThreadPoolExecutor.execute(ThreadPoolExecutor.java:1367)
-	at java.util.concurrent.AbstractExecutorService.submit(AbstractExecutorService.java:112)
-	at PrimeCalculator.getPrimes(PrimeCalculator.java:55)
-	at PrimeCalculator.main(PrimeCalculator.java:29)
+...
 Error occurred during initialization of VM
 java.lang.OutOfMemoryError: unable to create new native thread
 
 Process finished with exit code 1
 ```
-![img.png](img.png)
 
 Abnormal due ot amount of threads mac could handle
 ``` 
@@ -754,6 +748,27 @@ the following message appeared, yet application was still running:
 ![img_14.png](img_14.png)
 Allocation profiling with 60k and Thread.sleep(10000) in order to start allocation profiling
 
+# Troubleshooting
+
+##  Missing /META-INF/BenchmarkList
+The following error might occur while launching JMH benchmark:
+```
+Exception in thread "main" java.lang.RuntimeException: ERROR: Unable to find the resource: /META-INF/BenchmarkList 
+at org.openjdk.jmh.runner.AbstractResourceReader.getReaders(AbstractResourceReader.java:96) 
+at org.openjdk.jmh.runner.BenchmarkList.find(BenchmarkList.java:104) at org.openjdk.jmh.runner.Runner.internalRun(Runner.java:256) 
+at org.openjdk.jmh.runner.Runner.run(Runner.java:206) 
+at com.test.BTest.main(BTest.java:24)
+...
+```
+In order to fix that, please:
+1. Ensure all dependencies specified within [build.gradle](build.gradle) are loaded.
+2. If (1) didn't help, please, explicitly specify JDK path into gradle.properties. Please, ensure the path points to JDK, not JRE.
+```
+$ cat gradle.properties
+org.gradle.java.home=<full path to JDK>
+```
+
+
 # Further enhancements
 - It's possible to automate the profiling via CLI solutions, such as async profiler.
-- JMH results could be exported in a convinient file format, for example: CSV. We could leverage that for visualization purposes.
+- JMH results could be exported in a convenient file format, for example: CSV. We could leverage that for visualization purposes.
