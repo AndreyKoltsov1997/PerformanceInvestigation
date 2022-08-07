@@ -91,7 +91,6 @@ Thread.sleep(30000);
 }
 ```
 
-
 ![img_15.png](img_15.png)
 Looking at [snapshots/allocation/60k-allocation-profiling-original.csv](snapshots/allocation/60k-allocation-profiling-original.csv), the following 
 observations could be made:
@@ -155,24 +154,37 @@ Excessive allocation of objects could be found in:
 
 
 ## 1.3 Lock analysis
-### 1.3.1 Redundant synchronization
-Synchronized collections are expensive. In the original implementation, `primeNumbers` are accessed by a single thread to append it.
-Reading is done in multithreaded environment, however, since Collection is not modified, synchronization is not mandatory.
-```
-   List<Integer> primeNumbers = Collections.synchronizedList(new LinkedList<>());
+During CPU profiling, YourKit reported potential deadlock.
 
-```
-### 1.3.2 potential deadlock
-Potential deadlock (probably thread is frozen due to GC activity and not an actual deadlock)
 ![img_1.png](img_1.png)
+In my assumption, it's not a logical deadlock, but rather the indicator that multiple threads are waiting for the acquisition of 
+resources for more than 10 seconds. Such behavior is caused by the combination of the following factors:
+1. `Executors.newFixedThreadPool(...)`  uses `LinkedBlockingQueue` for executable tasks.
+2. `primeNumbers` are stored within synchronized LinkedList.
+3. `primeNumbersToRemove` are stored in synchronized LinkedList and accessed within `synchronized` block.
 
-### 1.3.3 Excessive amount of threads
-By default, we create thread-pool with 3000 threads or more. Apart from issues with JVMs running on machines with low amount of cores, 
-it leads to excessive context switching.
 ```
 ...
-ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
+    List<Integer> primeNumbers = Collections.synchronizedList(new LinkedList<>());
+    List<Integer> primeNumbersToRemove = Collections.synchronizedList(new LinkedList<>());
+    synchronized (primeNumbersToRemove) {
+    ...
+    }
 ...
+```
+
+The following points for improvements could be made:
+1. `primeNumbers` is always accessed by a single thread, thus it might be a regular collection.
+2. `primeNumbersToRemove` is a `synchronizedList`, yet it's being modified within `synchronized(primeNumbersToRemove)` block, 
+making the application logically single-threaded in this area. We would've needed `synchronized` if we'd have been iterating over 
+`primeNumbersToRemove`, but we iterate over `primeNumbers` instead and perform only `add(...)` method, which uses mutex internally.
+```
+static class SynchronizedList<E> ... {
+   public void add(int index, E element) {
+      synchronized (mutex) {list.add(index, element);}
+   }
+...
+}
 ```
 
 # 2. Automation - benchmark for comparison between the solutions
