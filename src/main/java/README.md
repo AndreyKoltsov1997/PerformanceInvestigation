@@ -322,6 +322,13 @@ Based on different JVM implementations, `newWorkStrealingPool` might be a pre-co
 (!) Thread pool's capacity depends on the environment (cores, JVM limits for available processes, etc.). Assuming that'd be a part of server-side logic, instead of hard-coding the value or multiplies based on available cores, I'd let user specify it via configuration options.
 
 
+# Existing algorithms
+
+An alternative the enhancement of current approach would be usage of existing algorithms for determination of prime numbers.
+
+An example of such algorithms is [Sieve of Eratosthenes](https://en.wikipedia.org/wiki/Sieve_of_Eratosthenes), which finds 
+prime numbers up to given limit. It's based on sequential identification of numbers that are divisible by primes.
+
 # Experiments
 System.out.println (standard output) had been excluded from measurement, since the ways to provide the results may vary (serialization, send over the wire, etc.)
 
