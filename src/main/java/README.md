@@ -1,5 +1,13 @@
 # Contents
-1. [Overview](#1-overview)
+1. [Overview](#1-overview)<br/>
+&nbsp;&nbsp;1.1 [Prerequisites](#11-prerequisites)<br/>
+   &nbsp;&nbsp;1.2 [How to run test](#12-how-to-run-test)<br/>
+2. [CPU and Memory analysis](#2-cpu-and-memory-analysis)<br/>
+   &nbsp;&nbsp;2.1 [ Execution environment](#21-execution-environment)<br/>
+   &nbsp;&nbsp;2.2 [CPU analysis - 500,000 numbers, 1500 threads](#22-cpu-analysis---500000-numbers-1500-threads)<br/>
+   &nbsp;&nbsp;2.3 [CPU analysis - 50,000 numbers, 50,000 threads](#23-cpu-analysis---50000-numbers-50000-threads)<br/>
+   &nbsp;&nbsp;2.4 [Heap analysis - 50,000 numbers, 50,000 threads](#24-heap-analysis---50000-numbers-50000-threads)<br/>
+   &nbsp;&nbsp;2.5 [Lock analysis](#25-lock-analysis)<br/>
 
 # 1. Overview
 Investigating the performance of calculator of prime numbers using [YourKit](https://www.yourkit.com) Java profiler.
@@ -24,21 +32,26 @@ The results would be available at `build/results/jmh/results.txt`.
 # 1. Set up 
 YourTrack had been used via Intellij IDEA. The IntelliJ's run method had been excluded from profiling.
 
-## Environment
-TODO: Add details
-1. MacBook Air M1
-2. Windows Laptop
+# 2. CPU and Memory analysis.
 
-# CPU and Memory analysis.
+## 2.1 Execution environment
 
-## Execution environment
-* Argument: 500000 (for sufficient sample size)
-* JVM options: `-XX:+UnlockDiagnosticVMOptions -XX:+PrintFlagsFinal -Xmx4000m` (otherwise Java OOM)
-* Thread limit: amount of threads had been changed due to system limitations: 3000 -> 1500 (inability to create native thread), 
+Each test had been executed locally on laptops that were available to me. 
 
-## 1.1 CPU analysis - 500,000 numbers, 1500 threads
-Considering issue observed within the environment (TODO: add reference to description), it was decided to hard-code the 
-amount of threads within the pool.
+* Max Prime number: 50,000 - 500,0000. Such decision had been made in order to get sufficient amount of CPU samples during profiling. 
+* JVM Options. `-Xms4096m -Xmx4096m -Xss1024k`
+
+That had led to the need to make code changes for testing purposes:
+`MacBook Air (M1, 2020)` - JVM supports only 4,000 threads. Therefore, thread pool's capacity had been modified. (TODO: add link to CPU analysis with 1,500 threads) (TODO: add section with analysis)
+
+
+## 2.2 CPU analysis - 500,000 numbers, 1500 threads
+
+Prior to execution of the experiment, thread pool's capacity had been reduced. In original implementation, that was either 3000 or `maxPrime`, depends 
+which one was higher. Such configuration had led to Java OOM within my Macbook Pro M1. 
+
+After multiple failed attempts to eliminate it (TODO: Add link to experiment), it was considered to reduce amount of threads within the pool down to 1500,
+otherwise the amount of samples would be relatively small, which would make it harder to analyze the results of CPU and Heap profiling.
 ```
 public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
     // ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
@@ -46,17 +59,14 @@ public static List<Integer> getPrimes(int maxPrime) throws InterruptedException 
     ...
 }
 ```
-As an alternative step, I've tried to run the program with maximal prime numbers that'd align with the amount of maximal 
-threads JVM within my environment could spawn.
-Unfortunately, considering small sampling size, such approach was insufficient for CPU analysis.
-
-Let's take a look at CPU snapshot ([500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot](snapshots/500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot)).
+Afterwards, the application had been profiled using Yourkit.
 
 ![img_3.png](img_3.png)
 A more simple view would be in the form of flamegraph:
 ![img_5.png](img_5.png)
 
-Found issues:
+Looking at ([500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot](snapshots/500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot)),
+the following observations had been made:
 * **Issue 1.** The samples link to the removal of non-prime numbers - ` primeNumbers.remove(toRemove)`. 
 Given the fact `primeNumbers` is an instance of `LinkedList`, each removal operation requires traversing the list to look-up 
 the element and remove it - it's an O(N) operation.
@@ -69,21 +79,32 @@ A more simple and less expensive approach would be the use of `boolean` type.
 
 Snapshot: [500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot](snapshots/500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot)
 
-## 1.2 CPU analysis - 50,000 numbers, 50,000 threads
-The solution was launched within other environment, where JVM is capable of having ~50,000 threads.
-Thus, it's now possible to check the performance affection caused by the approach of creating thread pool, which capacity is equal to 
-length of number sequence.
+## 2.3 CPU analysis - 50,000 numbers, 50,000 threads
+
+Unlike [2.2 CPU analysis - 500,000 numbers, 1500 threads](#22-cpu-analysis---500000-numbers-1500-threads), the experiment
+had been conducted on Windows laptop, which I was able to use for a day. Within that environment, JVM was capable of having 
+~50,000 threads - such value would be enough for efficient profiling of the application.
+
+Thus, the logic from original implementation had been used - thread pool's capacity is either 3000 or `maxPrime`, depends on
+what is higher.
+```
+public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
+    ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
+    ...
+}
+```
 
 ![img_8.png](img_8.png)
 Looking at [50k-primes-cpu-PrimeCalculator.snapshot](snapshots/50k-primes-cpu-PrimeCalculator.snapshot), the following observations could be made:
-* Most (92%) of the operations within CPU samples are dedicated to thread's initialization, while only 7% is dedicated to actual business logic - determination of prime numbers.
+* Most (92%) of the operations within CPU samples are dedicated to thread's initialization, while only 7% is dedicated to 
+actual business logic - determination of prime numbers.
 * 77% of such operations is related to the creation of the thread.
 
 Therefore, the following changes could be suggested:
 1. **Reduce concurrency level**. Each thread requires stack. Such immense amount of threads - 3000 at minimum - introduces 
 significant context switching time, as well as requires memory allocation.
 2. **Use different thread pool implementation**. Thread pool used within the original implementation - `newFixedThreadPool(...)` - creates a certain
-amount of worker threads (equal to max prime number) and a queue of the task (check if a number is prime). All of the tasks are
+amount of worker threads (equal to max prime number) and a queue of the task (check if a number is prime). All the tasks are
 put onto blocking queue (see: implementation of `newFixedThreadPool(...)` below), thus, given our concurrency level, a significant
 contention within the queue is unavoidable.
 
@@ -99,17 +120,7 @@ contention within the queue is unavoidable.
 
 
 
-## 1.2 Heap analysis - 50,000 numbers, 50,000 threads
-
-Heap usage had been analyzed using allocation profiling. On macOS, I wasn't able to get allocation data due to unknown allocation info (TODO: add link).
-In order to capture all allocation and be able to turn on "allocation profiling" within YourTrack, I've added an extra sleep
-prior to execution of the method.
-```
-public static void main(String[] args) throws InterruptedException, IOException, RunnerException {
-Thread.sleep(30000);
-...
-}
-```
+## 2.4 Heap analysis - 50,000 numbers, 50,000 threads
 
 ![img_15.png](img_15.png)
 Looking at [snapshots/allocation/60k-allocation-profiling-original.csv](snapshots/allocation/60k-allocation-profiling-original.csv), the following 
@@ -133,7 +144,6 @@ List<BigIntegerIterator> myFiller = Stream.generate(new Supplier<BigIntegerItera
             }
         }).limit(maxPrime).collect(Collectors.toList());
 ```
-
 2. **Creation of Runnable tasks**. Given the nature of the application - concurrent determination of prime numbers - the creation
 of such objects is reasonable. Yet, as stated within CPU profiling (TODO: add reference), concurrency level and thread pool implementation
 could be changed.
@@ -174,7 +184,7 @@ Excessive allocation of objects could be found in:
 * **Creation of excessive threads**. each thread occupies stack, but we could reduce concurrency. Leads to OOM.
 
 
-## 1.3 Lock analysis
+## 2.5 Lock analysis
 During CPU profiling, YourKit reported potential deadlock.
 
 ![img_1.png](img_1.png)
@@ -208,7 +218,7 @@ static class SynchronizedList<E> ... {
 }
 ```
 
-## 1.4 Analysis - conclusion
+## 2.6  Analysis - conclusion
 Based on CPU, RAM and Lock analysis, we could make enhancements to the application: data structures, concurrency, application workflow.
 
 In order to sufficiently compare the performance, that'd be useful to understand how user would see it.
