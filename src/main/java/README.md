@@ -210,46 +210,58 @@ from user perspective.
 As an outcome from benchmarking, we'd retrieve numerical characteristics, which we could use to qualify and characterize the performance of different 
 versions of the app.
 
-## 2.1 Tools
-[JMH](https://github.com/openjdk/jmh) is a Java harness for building, running, and analysing nano/micro/milli/macro benchmarks written in Java and other languages targeting the JVM.
-Latest available JMH build (1.56) as of August 2022 had been taken. Source: https://mvnrepository.com/artifact/org.openjdk.jmh/jmh-core/1.35
+## 2.1 Tool
 
-We'd include 2 dependencies: JMH core (business logic) and JMH annotation processor (simplification of execution)
+[Java Microbenchmark Harness (JMH)](https://github.com/openjdk/jmh) is a Java harness for building, running, and analysing
+nano/micro/milli/macro benchmarks written in Java and other languages targeting the JVM.
+
+Within the implementation, we'd use the following JMH-related dependencies:
+1. `jmh-core` - business logic of microbenchmark harness.
+2. `jmh-generator-annprocess` - annotation processor for simplified configuration and usage of JMH API.
+
 
 ## 2.2 Configuration
-The section describes core configuration options for the implemented automated solution - benchmark that uses JVM.
+The section describes core configuration options for the tool used within automation for performance tests - 
+[JMH](https://github.com/openjdk/jmh).
 
-# 2.1.1 Benchmark type
+### 2.2.1 JMH Benchmark mode
 JMH has the following modes of execution ([java doc](http://javadox.com/org.openjdk.jmh/jmh-core/0.8/org/openjdk/jmh/annotations/Mode.html)):
-* **Throughput** - measures the number of operations per second - number of times per second the method could be executed. Given the nature of the application (concurrent detect of numbers), that'd be better to focus on latency rather than throughput.
-* **Average time** - measures average time for a single execution. "Average" wouldn't be an efficient metric due to GC pauses. It would be much convenient to use percentiles.
-* **Sample time** - measures how long time it takes for the benchmark method to execute, including max, min time etc. A distribution of the values should be convenient for our case.
-* **Single shot time** - measures how long time a single benchmark method execution takes to run, which doesn't include JVM warm up. Given the nature of our application, a single method execution should be sufficient measurement.
-* **All** - runs all benchmark modes. This is mostly useful for internal JMH testing.
 
-The runtime of benchmark might include internment pauses, such as GC Stop The World event. Therefore, "average", which would include GC pauses, `SingleShotTime`:
-```
-Caveats for this mode include:
-- More warmup/measurement iterations are generally required.
-- Timers overhead might be significant if benchmarks are small; switch to SampleTime mode if that is a problem.
-```
+* **`Throughput`** - measures the number of operations per second - number of times per second the method could be executed. 
+Given the nature of the application (concurrent detection of prime numbers), that'd be better to focus on duration rather than throughput.
+* **`Average time`** - measures average time for a single execution. "Average" wouldn't be an efficient metric due to GC pauses. 
+It might be convenient for us to get a complete distribution of measurements (1st - 100th percentiles).
+* **`Sample time`** - measures how long time it takes for the benchmark method to execute, including max, min time etc. 
+Such distribution of the values should be convenient for our case.
+* **`Single shot time`** - measures how long time a single benchmark method execution takes to run, which doesn't include JVM warm up.
+Given the nature of our application, a single method execution should be sufficient measurement.
+* **`All`** - runs all benchmark modes. This is mostly useful for internal JMH testing due to significant overhead.
 
+Given all the above, `Sample time` mode would provide duration metrics, which we'd be able to use for the comparison of different `PrimeCalculator` versions.
+The distribution of such values (1st - 100th percentile) would allow us to have a precise comparison and omit the internment pauses during runtime.
 
-### 2.1.2 Warmup
-When benchmarking JVM applications, warmup provides a more stable results. Once class loading is complete, all classes used during the bootstrap are pushed onto JVM cache, which makes them faster at runtime, while other classes are loaded on per-request basis.
-The first invocation of application (in our case - prime numbers' fetcher) would be slower than the following ones. During the initial execution, additional time would be taken to lazy class loading and JIT.
-Thus, that'd be useful to cache all classes beforehand, thus they'd be instantly accessed at runtime. 
+### 2.1.2 Warmup iterations
+Given the fact `PrimeCalclator` is Java application, the first invocation of application would be slower than the following ones. 
+During the initial execution, additional time would be taken to lazy class loading and JIT.
+
+By having some amount of iterations that wouldn't be included into the measurement - "`warmup`", all classes would be 
+cached beforehand, thus they'd be instantly accessed at runtime during the primary phase of benchmark.
 
 ### 2.1.3 Avoiding dead code elimination by JVM
-JVM might detect that the result of the benchmarking method is not used anywhere. As a result, that'd apply optimizations.
-Consider the fact we'd want to focus on "real" use cases, that would provide insufficient results.
-JVM provides `Blackhole` object, which might be used as a consumer of the result. Therefore, we'd prevent JVM's optimization related to the unused code.
+
+While conducting performance experiments, that'd be useful to simulate the workload that's close to real-world scenario.
+
+In case the result of benchmarking method - `getPrimes(...)` - wouldn't be used anywhere, JVM would detect that and apply 
+a related optimizations, which would misleadingly affect performance measurements.
+
+In order to exclude such situations, JMH provides `Blackhole` object, which could be used as a consumer of the output of benchmarking method.
+That'd prevent an unwanted dead code elimination by JVM.
+
 ### 2.1.4 SetUp / TearDown
 Given the nature of the original method and the fact it generates sequence of the numbers on demand, no set up or tear down actions are needed.
 
 ## 2.2 Execution
 JVM options: `-Xms4096m -Xmx4096m -Xss1024k`
-### 2.2.1 Original solution
 
 
 # 3. Code enhancements
