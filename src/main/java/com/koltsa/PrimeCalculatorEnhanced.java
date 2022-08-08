@@ -5,13 +5,16 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.*;
 
+/**
+ * Enhanced version of PrimeCalculator implementation.
+ */
 public class PrimeCalculatorEnhanced {
 
     /**
      * Returns list of prime numbers from range [2; maxPrime]
-     * @param maxPrime - upper bound of prime number;
-     * @return list of prime numbers;
-     * @throws InterruptedException
+     * @param maxPrime - upper bound of prime number.
+     * @return list of prime numbers.
+     * @throws InterruptedException if the thread that calls the method is interrupted.
      */
     public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
         if (maxPrime < 2) {
@@ -46,11 +49,9 @@ public class PrimeCalculatorEnhanced {
 
 
     /**
-     * Check if number is a prime number.
-     * Prime numbers: 2, 3, 5, 7, 11, ...
-     *
-     * @param number
-     * @return
+     * Check if number is a prime number, e.g.: 2, 3, 5, 7, 11, ...
+     * @param number - candidate for prime number.
+     * @return true if number is prime (could be decided only by itself)
      */
     private static boolean isPrime(int number) {
         // Check number in bounds of primes and not an even

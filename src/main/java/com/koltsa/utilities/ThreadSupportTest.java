@@ -1,10 +1,12 @@
-package com.koltsa;
+package com.koltsa.utilities;
 
 public class ThreadSupportTest {
+
     private static int threadCount = 0;
 
     /**
-     * Checks how much threads current JVM supports.
+     * Checks how many threads current JVM supports by sequentially spawning the threads and ...
+     * ... printing out their number into standard output.
      */
     public static void checkHowManyThreadsJvmCouldHave() {
         Object monitor = new Object();

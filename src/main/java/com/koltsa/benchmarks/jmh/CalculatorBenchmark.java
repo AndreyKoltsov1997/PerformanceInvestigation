@@ -1,4 +1,4 @@
-package benchmark.jmh;
+package com.koltsa.benchmarks.jmh;
 
 import com.koltsa.PrimeCalculator;
 import com.koltsa.PrimeCalculatorEnhanced;

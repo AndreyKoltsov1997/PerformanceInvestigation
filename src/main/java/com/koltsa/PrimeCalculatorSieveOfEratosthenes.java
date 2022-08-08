@@ -4,18 +4,22 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
+/**
+ * Implements determination of prime numbers using Sieve of Eratosthenes algorithm.
+ * Details: https://en.wikipedia.org/wiki/Sieve_of_Eratosthenes
+ */
 public class PrimeCalculatorSieveOfEratosthenes {
 
     /**
      * Determines prime numbers from range [2; maxPrime].
      *
-     * @param maxPrime - upper bound of target prime number sequence
-     * @return list of prime numbers from range [2; maxPrime]
+     * @param maxPrime - upper bound of target prime number sequence.
+     * @return list of prime numbers from range [2; maxPrime].
      */
     public static List<Integer> getPrimes(final int maxPrime) {
 
+        // Create a "table" of numbers [2; maxPrime] and mark all of them as 'true'.
         boolean[] tableOfNums = new boolean[maxPrime + 1];
-        // -- mark all values as true
         Arrays.fill(tableOfNums, true);
 
         // Linked List, since we always append at the end => O(1) time complexity
