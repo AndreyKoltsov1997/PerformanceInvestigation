@@ -1,8 +1,10 @@
 # Overview
-Automation for visualization of benchmark results captured via Java Microbenchmark Harness.
+![img_17.png](../documentation/comparison-chart-enhancements-of-code.png)
+
+Automated visualization of performance test results conducted via [Java Microbenchmark Harness (JMH)](https://github.com/openjdk/jmh).
+
 The automation supports 2 file formats:
-* **Plain text.** Raw results of JMH printed out in regular, plain text format. Useful in case JMH had been launched from IDE
-without any additional options.
+* **Plain text.** Raw results of JMH printed out in regular, plain text format. Mostly useful in case JMH had been launched via IDE.
 * **CSV**. Results of JMH benchmark exported in CSV format.
 
 # Available options
