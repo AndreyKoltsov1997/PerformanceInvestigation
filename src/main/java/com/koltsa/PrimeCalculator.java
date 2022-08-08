@@ -1,13 +1,6 @@
 // Moved to package to simplify execution
 package com.koltsa;
 
-import benchmark.jmh.CalculatorBenchmark;
-import org.openjdk.jmh.runner.Runner;
-import org.openjdk.jmh.runner.RunnerException;
-import org.openjdk.jmh.runner.options.Options;
-import org.openjdk.jmh.runner.options.OptionsBuilder;
-
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -19,7 +12,6 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-// What is the purpose of this class?
 class BigIntegerIterator {
     private final List<String> contain = new ArrayList<>(500);
     private final List<Integer> reference = new ArrayList<>(500);
@@ -30,35 +22,21 @@ class BigIntegerIterator {
     }
 
     Integer getContain() {
-        return Math.max(Integer.decode(contain.get(0)),reference.get(0));
+        return Math.max(Integer.decode(contain.get(0)), reference.get(0));
     }
 }
 
 public class PrimeCalculator {
-    public static void main(String[] args) throws InterruptedException, IOException, RunnerException {
 
-        Options opt = new OptionsBuilder()
-                .include(CalculatorBenchmark.class.getSimpleName())
-                .forks(1)
-                .build();
-
-        new Runner(opt).run();
-
-//        CalculatorBenchmark benchmark = new CalculatorBenchmark();
-//        benchmark.init();
-        return;
-//        for (Integer prime : getPrimes(Integer.parseInt(args[0]))) {
-//            System.out.println(prime);
-//        }
+    public static void main(String[] args) {
+        System.out.println(PrimeCalculatorSieveOfEratosthenes.getPrimes(Integer.parseInt(args[0])));
     }
 
-    // changed 'private' to 'public' static
     public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
         List<Integer> primeNumbers = Collections.synchronizedList(new LinkedList<>());
         List<BigIntegerIterator> myFiller = Stream.generate(new Supplier<BigIntegerIterator>() {
             int i = 2;
 
-            // Redundant code - could be replaced with a simple loop
             @Override
             public BigIntegerIterator get() {
                 return new BigIntegerIterator(i++);
@@ -71,10 +49,8 @@ public class PrimeCalculator {
 
         List<Integer> primeNumbersToRemove = Collections.synchronizedList(new LinkedList<>());
         CountDownLatch latch = new CountDownLatch(maxPrime);
-//        ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
-        ExecutorService executors = Executors.newFixedThreadPool(1200);
+        ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
 
-        // amount of threads had been changed due to system limitations: 3000 -> 1500 (inability to create native thread)
         synchronized (primeNumbersToRemove) {
             for (Integer candidate : primeNumbers) {
                 executors.submit(() -> {
@@ -99,7 +75,6 @@ public class PrimeCalculator {
     private static void isPrime(List<Integer> primeNumbers, Integer candidate) throws Exception {
         for (Integer j : primeNumbers.subList(0, candidate - 2)) {
             if (candidate % j == 0) {
-                // TODO: Change "Exception" to boolean
                 throw new Exception();
             }
         }

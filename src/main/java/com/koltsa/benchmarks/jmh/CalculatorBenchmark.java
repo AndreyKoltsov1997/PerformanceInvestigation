@@ -1,0 +1,41 @@
+package com.koltsa.benchmarks.jmh;
+
+import com.koltsa.PrimeCalculator;
+import com.koltsa.PrimeCalculatorEnhanced;
+import org.openjdk.jmh.annotations.*;
+import org.openjdk.jmh.infra.Blackhole;
+
+import java.util.concurrent.TimeUnit;
+
+@OutputTimeUnit(TimeUnit.MILLISECONDS)
+public class CalculatorBenchmark {
+
+    // State objects naturally encapsulate the state on which benchmark is working on.
+    // The Scope of state object defines to which extent it is shared among the worker thread
+    // Scope.Benchmark because all threads could share this variable. It's read-only
+    @State(Scope.Benchmark)
+    public static class CalculatorBenchmarkPlan {
+
+        @Param({"1000", "10000", "50000"})
+        public int maxPrimeNumber;
+    }
+
+    @Benchmark
+    // @Fork - instructs how benchmark execution will happen. 'value' controls how many times the benchmark ...
+    // ... will be executed. 'warmups' controls how many times the benchmark will be executed prior to results collection.
+    @Fork(value = 1, warmups = 3)
+    @BenchmarkMode(Mode.SampleTime)
+    public void runOriginalImplementation(CalculatorBenchmarkPlan plan, Blackhole blackhole) throws InterruptedException {
+        blackhole.consume(PrimeCalculator.getPrimes(Integer.parseInt(String.valueOf(plan.maxPrimeNumber))));
+    }
+
+    @Benchmark
+    // @Fork - instructs how benchmark execution will happen. 'value' controls how many times the benchmark ...
+    // ... will be executed. 'warmups' controls how many times the benchmark will be executed prior to results collection.
+    @Fork(value = 1, warmups = 3)
+    @BenchmarkMode(Mode.SampleTime)
+    public void runEnhancedBenchmark(CalculatorBenchmarkPlan plan, Blackhole blackhole) throws InterruptedException {
+        blackhole.consume(PrimeCalculatorEnhanced.getPrimes(Integer.parseInt(String.valueOf(plan.maxPrimeNumber))));
+    }
+
+}
