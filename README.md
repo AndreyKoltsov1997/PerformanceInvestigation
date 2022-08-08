@@ -72,7 +72,7 @@ That had led to the need to make code changes for testing purposes:
 
 ## 2.2 CPU analysis - 500,000 numbers, 1500 threads
 
-Prior to execution of the experiment, thread pool's capacity had been reduced. In original implementation, that was either 3000 or `maxPrime`, depends 
+Prior to execution of the experiment, thread pool's capacity had been reduced. In original implementation, that was either 3000 or `maxPrime`, depends on 
 which one was higher. Such configuration had led to Java OOM within my Macbook Pro M1. 
 
 After multiple failed attempts to eliminate it (TODO: Add link to experiment), it was considered to reduce amount of threads within the pool down to 1500,
@@ -90,10 +90,10 @@ Afterwards, the application had been profiled using Yourkit.
 A more simple view would be in the form of flamegraph:
 ![img_5.png](img_5.png)
 
-Looking at ([500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot](snapshots/500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot)),
+Looking at ([500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot](snapshots/cpu/500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot)),
 the following observations had been made:
 * **Issue 1.** The samples link to the removal of non-prime numbers - ` primeNumbers.remove(toRemove)`. 
-Given the fact `primeNumbers` is an instance of `LinkedList`, each removal operation requires traversing the list to look-up 
+Given the fact `primeNumbers` is an instance of `LinkedList`, each removal operation requires traversing the list to look up 
 the element and remove it - it's an O(N) operation.
 Omitting changes within business logic itself (to not use a collection for storage of non-prime numbers), a more suitable 
 collection for this use case would be `HashSet`, as it removes element by O(1) time.
@@ -102,7 +102,7 @@ Depending on stack trace, stack depth and type, the creation of `Exception` inst
 Considering their frequent creation in our case, the affection on performance (CPU, Heap and, as a result, GC) is inevitable.
 A more simple and less expensive approach would be the use of `boolean` type.
 
-Snapshot: [500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot](snapshots/500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot)
+Snapshot: [500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot](snapshots/cpu/500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot)
 
 ## 2.3 CPU analysis - 50,000 numbers, 50,000 threads
 
@@ -120,7 +120,7 @@ public static List<Integer> getPrimes(int maxPrime) throws InterruptedException 
 ```
 
 ![img_8.png](img_8.png)
-Looking at [50k-primes-cpu-PrimeCalculator.snapshot](snapshots/50k-primes-cpu-PrimeCalculator.snapshot), the following observations could be made:
+Looking at [50k-primes-cpu-PrimeCalculator.snapshot](snapshots/cpu/50k-primes-cpu-PrimeCalculator.snapshot), the following observations could be made:
 * Most (92%) of the operations within CPU samples are dedicated to thread's initialization, while only 7% is dedicated to 
 actual business logic - determination of prime numbers.
 * 77% of such operations is related to the creation of the thread.
@@ -311,7 +311,7 @@ That'd prevent an unwanted dead code elimination by JVM.
 Given the nature of the original method and the fact it generates sequence of the numbers on demand, no set up or tear down actions are needed.
 
 # 4. Code enhancements
-The section lists enhancements that had been made to the original implementation of prime numbers calculator.
+The section lists enhancements that had been made to the original implementation of prime numbers' calculator.
 
 ## 4.1 "isPrime(...)" method
 ```
@@ -424,7 +424,7 @@ System.out.println (standard output) had been excluded from measurement, since t
 
 ## 6.1 Test configuration
 * **Input argument - max prime number**. Within original implementation, I've observed significant (1 second+) GC pauses while specifying ~15,000 as max prime number.
-Thus, the following options have been determined to provide repeatable results, yet fullfill an efficient amount of CPU / Heap samples 
+Thus, the following options have been determined to provide repeatable results, yet fulfill an efficient amount of CPU / Heap samples 
 during profiling: 1000, 10000, 50000.
 ```
 @Param({"1000", "10000", "50000"})
@@ -445,7 +445,7 @@ equal minimal and maximal heap size, 4GB each: `-Xms4000m -Xmx4000m`.
 In order to get the numerical representation of performance enhancements conducted in the form of code changes, it's 
 necessary to determinate the baseline - performance of the original implementation.
 
-Results (raw output of JMH): [experiment-0-baseline.txt](/Users/andreykoltsov/Developer/again/PerformanceInvestigation/visualization/results-plain-text/experiment-0-baseline.txt)
+Results (raw output of JMH): [experiment-0-baseline.txt](visualization/results-plain-text/1-original-implementation.txt)
 
 
 ## 6.3 Elimination of excessive objects
@@ -456,7 +456,7 @@ changed from using `Exception` to boolean value.
 the change was aimed at removal of `BigIntegerIterator` class, as well as other unnecessary collections mentioned in [2.4 Heap analysis - 50,000 numbers, 50,000 threads](#24-heap-analysis---50000-numbers-50000-threads).
 
 
-Results (raw output of JMH): [experiment-2-linked-list.txt](/Users/andreykoltsov/Developer/again/PerformanceInvestigation/visualization/results-plain-text/experiment-2-linked-list.txt)
+Results (raw output of JMH): [experiment-2-linked-list.txt](visualization/results-plain-text/2-enhanced-no-redundant-objects.txt)
 
 ## 6.4 Change of concurrency level and management
 
@@ -466,7 +466,7 @@ Changes made:
 * **Concurrency management**. As suggested in [4.2 Concurrency level and execution](#42-concurrency-level-and-execution),
 work-stealing approach had been applied to our use case.
 
-Results (raw output of JMH): [experiment-4-work-stealing-pool.txt](visualization/results-plain-text/experiment-4-work-stealing-pool.txt)
+Results (raw output of JMH): [experiment-4-work-stealing-pool.txt](visualization/results-plain-text/3-enhanced-work-stealing-thread-pool.txt)
 
 ## 6.5 Visualization of enhancements
 ![img_17.png](img_17.png)
