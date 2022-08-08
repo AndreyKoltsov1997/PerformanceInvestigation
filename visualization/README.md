@@ -17,7 +17,7 @@ The automation supports 2 file formats:
 
 
 # Requirements
-* Python 3
+* Python 3.6.0+
 
 # Build
 ```
