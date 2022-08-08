@@ -28,7 +28,6 @@
 7. [Results](#7-results)<br/>
 7.1 [Visualization](#71-visualization)<br/>
 7.2 [Comparison of implemented algorithms](#72-comparison-of-implemented-algorithms)<br/>
-
 8. [Observed issues](#8-observed-issues)<br/>
    8.1 [MacBook Air M1 - thread limitations](#81-macbook-air-m1---thread-limitations)<br/>
    8.2 [YourKit - allocation profiling issue](#82-yourkit---allocation-profiling-issue)<br/>
