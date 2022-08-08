@@ -1,6 +1,7 @@
 package com.koltsa;
 
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.*;
 
@@ -13,6 +14,11 @@ public class PrimeCalculatorEnhanced {
      * @throws InterruptedException
      */
     public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
+        if (maxPrime < 2) {
+            // no prime numbers => return empty list
+            return new LinkedList<>();
+        }
+
         final int cores = Runtime.getRuntime().availableProcessors();
         ExecutorService executors = Executors.newWorkStealingPool(cores);
 
@@ -58,7 +64,8 @@ public class PrimeCalculatorEnhanced {
             return true;
         }
 
-        // sequentially check for other numbers
+        // sequentially check for other numbers. Odd numbers are omitted ...
+        // ... given the check (num % 2) above.
         for (int i = 3; i < number; i+= 2) {
             if (number % i == 0) {
                 return false;

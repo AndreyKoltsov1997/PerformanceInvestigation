@@ -20,7 +20,6 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-// What is the purpose of this class?
 class BigIntegerIterator {
     private final List<String> contain = new ArrayList<>(500);
     private final List<Integer> reference = new ArrayList<>(500);
@@ -59,13 +58,11 @@ public class PrimeCalculator {
 //        }
     }
 
-    // changed 'private' to 'public' static
     public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
         List<Integer> primeNumbers = Collections.synchronizedList(new LinkedList<>());
         List<BigIntegerIterator> myFiller = Stream.generate(new Supplier<BigIntegerIterator>() {
             int i = 2;
 
-            // Redundant code - could be replaced with a simple loop
             @Override
             public BigIntegerIterator get() {
                 return new BigIntegerIterator(i++);
@@ -80,9 +77,6 @@ public class PrimeCalculator {
         CountDownLatch latch = new CountDownLatch(maxPrime);
         ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
 
-        // amount of threads had been changed due to system limitations: 3000 -> 1500 (inability to create native thread)
-        // 'synchronized' does not guarantee there won't be a deadlock. Essentially, it makes this part logically single-threaded , ...
-        // ... thus, given 3000+ threads, the program will hang.
         synchronized (primeNumbersToRemove) {
             for (Integer candidate : primeNumbers) {
                 executors.submit(() -> {

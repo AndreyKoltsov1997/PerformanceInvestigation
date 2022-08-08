@@ -4,10 +4,6 @@ import com.koltsa.PrimeCalculator;
 import com.koltsa.PrimeCalculatorEnhanced;
 import org.openjdk.jmh.annotations.*;
 import org.openjdk.jmh.infra.Blackhole;
-import org.openjdk.jmh.runner.Runner;
-import org.openjdk.jmh.runner.RunnerException;
-import org.openjdk.jmh.runner.options.Options;
-import org.openjdk.jmh.runner.options.OptionsBuilder;
 
 import java.util.concurrent.TimeUnit;
 
@@ -20,9 +16,8 @@ public class CalculatorBenchmark {
     @State(Scope.Benchmark)
     public static class CalculatorBenchmarkPlan {
 
-        //        @Param({ "1000", "10000", "800000" })
         @Param({"1000", "10000", "50000"})
-        public int iterations;
+        public int maxPrimeNumber;
     }
 
     @Benchmark
@@ -31,7 +26,7 @@ public class CalculatorBenchmark {
     @Fork(value = 1, warmups = 3)
     @BenchmarkMode(Mode.SampleTime)
     public void runOriginalImplementation(CalculatorBenchmarkPlan plan, Blackhole blackhole) throws InterruptedException {
-        blackhole.consume(PrimeCalculator.getPrimes(Integer.parseInt(String.valueOf(plan.iterations))));
+        blackhole.consume(PrimeCalculator.getPrimes(Integer.parseInt(String.valueOf(plan.maxPrimeNumber))));
     }
 
     @Benchmark
@@ -40,7 +35,7 @@ public class CalculatorBenchmark {
     @Fork(value = 1, warmups = 3)
     @BenchmarkMode(Mode.SampleTime)
     public void runEnhancedBenchmark(CalculatorBenchmarkPlan plan, Blackhole blackhole) throws InterruptedException {
-        blackhole.consume(PrimeCalculatorEnhanced.getPrimes(Integer.parseInt(String.valueOf(plan.iterations))));
+        blackhole.consume(PrimeCalculatorEnhanced.getPrimes(Integer.parseInt(String.valueOf(plan.maxPrimeNumber))));
     }
 
 }

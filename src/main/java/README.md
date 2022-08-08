@@ -1,28 +1,75 @@
-# Plan
+# Contents
+1. [Overview](#1-overview)<br/>
+&nbsp;&nbsp;1.1 [Prerequisites](#11-prerequisites)<br/>
+   &nbsp;&nbsp;1.2 [How to run test](#12-how-to-run-test)<br/>
+2. [CPU and Memory analysis](#2-cpu-and-memory-analysis)<br/>
+   &nbsp;&nbsp;2.1 [ Execution environment](#21-execution-environment)<br/>
+   &nbsp;&nbsp;2.2 [CPU analysis - 500,000 numbers, 1500 threads](#22-cpu-analysis---500000-numbers-1500-threads)<br/>
+   &nbsp;&nbsp;2.3 [CPU analysis - 50,000 numbers, 50,000 threads](#23-cpu-analysis---50000-numbers-50000-threads)<br/>
+   &nbsp;&nbsp;2.4 [Heap analysis - 50,000 numbers, 50,000 threads](#24-heap-analysis---50000-numbers-50000-threads)<br/>
+   &nbsp;&nbsp;2.5 [Lock analysis](#25-lock-analysis)<br/>
+3. [Automation - benchmark for performance comparison](#3-automation---benchmark-for-performance-comparison)<br/>
+   3.1 [Java Microbenchmark Harness (JMH)](#31-java-microbenchmark-harness-jmh)<br/>
+   3.2 [JMH configuration](#32-jmh-configuration)<br/>
+   3.2.1 [JMH Benchmark mode](#321-jmh-benchmark-mode)<br/>
+   3.2.2 [Warmup iterations](#322-warmup-iterations)<br/>
+   3.2.3 [Avoiding dead code elimination by JVM](#323-avoiding-dead-code-elimination-by-jvm)<br/>
+   3.2.4 [SetUp / TearDown](#324-setup--teardown)<br/>
+4. [Code enhancements](#4-code-enhancements)<br/>
+4.1 ["isPrime(...)" method](#41-isprime-method)<br/>
+4.2 [Concurrency level and execution](#42-concurrency-level-and-execution)<br/>
+4.3 [Redundant use of BigIntegerIterator](#43-redundant-use-of-bigintegeriterator)<br/>
+5. [Existing algorithms](#5-existing-algorithms)<br/>
+6. [Experiments](#6-experiments)<br/>
+6.1 [Test configuration](#61-test-configuration)<br/>
+   6.2 [Baseline - benchmark of original implementation](#62-baseline---benchmark-of-original-implementation)<br/>
+   6.3 [Elimination of excessive objects](#63-elimination-of-excessive-objects)<br/>
+   6.4 [Change of concurrency level and management](#64-change-of-concurrency-level-and-management)<br/>
+7. [Visualization](#7-visualization)
 
-1. Describe issues based on CPU and Memory analysis.
-2. Create microbenchmark to simplify the comparison between the solutions.
-3. Add code changes that'd enhance the performance.
+# 1. Overview
+Investigating the performance of calculator of prime numbers using [YourKit](https://www.yourkit.com) Java profiler.
 
+The repository contains original code sample, YourKit's CPU and Allocation profiling data, its analysis and code enhancements.
+
+In order to compare different solutions, performance tests have been automated using [Java Microbenchmark Harness (JMH)](https://github.com/openjdk/jmh).
+In order to simplify comparison between the builds, automation for [visualization of JMH results](visualization) have been implemented.
+
+## 1.1 Prerequisites
+
+- `JRE 8`
+- `(optional) YourKit Java Profiler` - visualization of CPU / allocation samples.
+- `(optional) Python 3` - visualization of results.
+
+# 1.2 How to run test
+```
+./gradlew jmh
+```
+The results would be available at `build/results/jmh/results.txt`.
 
 # 1. Set up 
 YourTrack had been used via Intellij IDEA. The IntelliJ's run method had been excluded from profiling.
 
-## Environment
-TODO: Add details
-1. MacBook Air M1
-2. Windows Laptop
+# 2. CPU and Memory analysis.
 
-# CPU and Memory analysis.
+## 2.1 Execution environment
 
-## Execution environment
-* Argument: 500000 (for sufficient sample size)
-* JVM options: `-XX:+UnlockDiagnosticVMOptions -XX:+PrintFlagsFinal -Xmx4000m` (otherwise Java OOM)
-* Thread limit: amount of threads had been changed due to system limitations: 3000 -> 1500 (inability to create native thread), 
+Each test had been executed locally on laptops that were available to me. 
 
-## 1.1 CPU analysis - 500,000 numbers, 1500 threads
-Considering issue observed within the environment (TODO: add reference to description), it was decided to hard-code the 
-amount of threads within the pool.
+* Max Prime number: 50,000 - 500,0000. Such decision had been made in order to get sufficient amount of CPU samples during profiling. 
+* JVM Options. `-Xms4096m -Xmx4096m -Xss1024k`
+
+That had led to the need to make code changes for testing purposes:
+`MacBook Air (M1, 2020)` - JVM supports only 4,000 threads. Therefore, thread pool's capacity had been modified. (TODO: add link to CPU analysis with 1,500 threads) (TODO: add section with analysis)
+
+
+## 2.2 CPU analysis - 500,000 numbers, 1500 threads
+
+Prior to execution of the experiment, thread pool's capacity had been reduced. In original implementation, that was either 3000 or `maxPrime`, depends 
+which one was higher. Such configuration had led to Java OOM within my Macbook Pro M1. 
+
+After multiple failed attempts to eliminate it (TODO: Add link to experiment), it was considered to reduce amount of threads within the pool down to 1500,
+otherwise the amount of samples would be relatively small, which would make it harder to analyze the results of CPU and Heap profiling.
 ```
 public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
     // ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
@@ -30,17 +77,14 @@ public static List<Integer> getPrimes(int maxPrime) throws InterruptedException 
     ...
 }
 ```
-As an alternative step, I've tried to run the program with maximal prime numbers that'd align with the amount of maximal 
-threads JVM within my environment could spawn.
-Unfortunately, considering small sampling size, such approach was insufficient for CPU analysis.
-
-Let's take a look at CPU snapshot ([500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot](snapshots/500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot)).
+Afterwards, the application had been profiled using Yourkit.
 
 ![img_3.png](img_3.png)
 A more simple view would be in the form of flamegraph:
 ![img_5.png](img_5.png)
 
-Found issues:
+Looking at ([500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot](snapshots/500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot)),
+the following observations had been made:
 * **Issue 1.** The samples link to the removal of non-prime numbers - ` primeNumbers.remove(toRemove)`. 
 Given the fact `primeNumbers` is an instance of `LinkedList`, each removal operation requires traversing the list to look-up 
 the element and remove it - it's an O(N) operation.
@@ -53,21 +97,32 @@ A more simple and less expensive approach would be the use of `boolean` type.
 
 Snapshot: [500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot](snapshots/500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot)
 
-## 1.2 CPU analysis - 50,000 numbers, 50,000 threads
-The solution was launched within other environment, where JVM is capable of having ~50,000 threads.
-Thus, it's now possible to check the performance affection caused by the approach of creating thread pool, which capacity is equal to 
-length of number sequence.
+## 2.3 CPU analysis - 50,000 numbers, 50,000 threads
+
+Unlike [2.2 CPU analysis - 500,000 numbers, 1500 threads](#22-cpu-analysis---500000-numbers-1500-threads), the experiment
+had been conducted on Windows laptop, which I was able to use for a day. Within that environment, JVM was capable of having 
+~50,000 threads - such value would be enough for efficient profiling of the application.
+
+Thus, the logic from original implementation had been used - thread pool's capacity is either 3000 or `maxPrime`, depends on
+what is higher.
+```
+public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
+    ExecutorService executors = Executors.newFixedThreadPool(Math.max(maxPrime / 100, 3000));
+    ...
+}
+```
 
 ![img_8.png](img_8.png)
 Looking at [50k-primes-cpu-PrimeCalculator.snapshot](snapshots/50k-primes-cpu-PrimeCalculator.snapshot), the following observations could be made:
-* Most (92%) of the operations within CPU samples are dedicated to thread's initialization, while only 7% is dedicated to actual business logic - determination of prime numbers.
+* Most (92%) of the operations within CPU samples are dedicated to thread's initialization, while only 7% is dedicated to 
+actual business logic - determination of prime numbers.
 * 77% of such operations is related to the creation of the thread.
 
 Therefore, the following changes could be suggested:
 1. **Reduce concurrency level**. Each thread requires stack. Such immense amount of threads - 3000 at minimum - introduces 
 significant context switching time, as well as requires memory allocation.
 2. **Use different thread pool implementation**. Thread pool used within the original implementation - `newFixedThreadPool(...)` - creates a certain
-amount of worker threads (equal to max prime number) and a queue of the task (check if a number is prime). All of the tasks are
+amount of worker threads (equal to max prime number) and a queue of the task (check if a number is prime). All the tasks are
 put onto blocking queue (see: implementation of `newFixedThreadPool(...)` below), thus, given our concurrency level, a significant
 contention within the queue is unavoidable.
 
@@ -83,17 +138,7 @@ contention within the queue is unavoidable.
 
 
 
-## 1.2 Heap analysis - 50,000 numbers, 50,000 threads
-
-Heap usage had been analyzed using allocation profiling. On macOS, I wasn't able to get allocation data due to unknown allocation info (TODO: add link).
-In order to capture all allocation and be able to turn on "allocation profiling" within YourTrack, I've added an extra sleep
-prior to execution of the method.
-```
-public static void main(String[] args) throws InterruptedException, IOException, RunnerException {
-Thread.sleep(30000);
-...
-}
-```
+## 2.4 Heap analysis - 50,000 numbers, 50,000 threads
 
 ![img_15.png](img_15.png)
 Looking at [snapshots/allocation/60k-allocation-profiling-original.csv](snapshots/allocation/60k-allocation-profiling-original.csv), the following 
@@ -117,7 +162,6 @@ List<BigIntegerIterator> myFiller = Stream.generate(new Supplier<BigIntegerItera
             }
         }).limit(maxPrime).collect(Collectors.toList());
 ```
-
 2. **Creation of Runnable tasks**. Given the nature of the application - concurrent determination of prime numbers - the creation
 of such objects is reasonable. Yet, as stated within CPU profiling (TODO: add reference), concurrency level and thread pool implementation
 could be changed.
@@ -158,7 +202,7 @@ Excessive allocation of objects could be found in:
 * **Creation of excessive threads**. each thread occupies stack, but we could reduce concurrency. Leads to OOM.
 
 
-## 1.3 Lock analysis
+## 2.5 Lock analysis
 During CPU profiling, YourKit reported potential deadlock.
 
 ![img_1.png](img_1.png)
@@ -192,12 +236,12 @@ static class SynchronizedList<E> ... {
 }
 ```
 
-## 1.4 Analysis - conclusion
+## 2.6  Analysis - conclusion
 Based on CPU, RAM and Lock analysis, we could make enhancements to the application: data structures, concurrency, application workflow.
 
 In order to sufficiently compare the performance, that'd be useful to understand how user would see it.
 
-# 2. Automation - benchmark for comparison between the solutions
+# 3. Automation - benchmark for performance comparison
 
 Profiling of the application provides significant benefits while investigating its behavior: resource consumption (CPU / RAM / Heap / off-heap),
 object allocation, state of threads. Using the objectives made based on such analysis, developers could enhance application performance and stability.
@@ -210,7 +254,7 @@ from user perspective.
 As an outcome from benchmarking, we'd retrieve numerical characteristics, which we could use to qualify and characterize the performance of different 
 versions of the app.
 
-## 2.1 Tool
+## 3.1 Java Microbenchmark Harness (JMH)
 
 [Java Microbenchmark Harness (JMH)](https://github.com/openjdk/jmh) is a Java harness for building, running, and analysing
 nano/micro/milli/macro benchmarks written in Java and other languages targeting the JVM.
@@ -219,12 +263,11 @@ Within the implementation, we'd use the following JMH-related dependencies:
 1. `jmh-core` - business logic of microbenchmark harness.
 2. `jmh-generator-annprocess` - annotation processor for simplified configuration and usage of JMH API.
 
-
-## 2.2 Configuration
+## 3.2 JMH configuration
 The section describes core configuration options for the tool used within automation for performance tests - 
 [JMH](https://github.com/openjdk/jmh).
 
-### 2.2.1 JMH Benchmark mode
+### 3.2.1 JMH Benchmark mode
 JMH has the following modes of execution ([java doc](http://javadox.com/org.openjdk.jmh/jmh-core/0.8/org/openjdk/jmh/annotations/Mode.html)):
 
 * **`Throughput`** - measures the number of operations per second - number of times per second the method could be executed. 
@@ -240,14 +283,14 @@ Given the nature of our application, a single method execution should be suffici
 Given all the above, `Sample time` mode would provide duration metrics, which we'd be able to use for the comparison of different `PrimeCalculator` versions.
 The distribution of such values (1st - 100th percentile) would allow us to have a precise comparison and omit the internment pauses during runtime.
 
-### 2.1.2 Warmup iterations
+### 3.2.2 Warmup iterations
 Given the fact `PrimeCalclator` is Java application, the first invocation of application would be slower than the following ones. 
 During the initial execution, additional time would be taken to lazy class loading and JIT.
 
 By having some amount of iterations that wouldn't be included into the measurement - "`warmup`", all classes would be 
 cached beforehand, thus they'd be instantly accessed at runtime during the primary phase of benchmark.
 
-### 2.1.3 Avoiding dead code elimination by JVM
+### 3.2.3 Avoiding dead code elimination by JVM
 
 While conducting performance experiments, that'd be useful to simulate the workload that's close to real-world scenario.
 
@@ -257,17 +300,13 @@ a related optimizations, which would misleadingly affect performance measurement
 In order to exclude such situations, JMH provides `Blackhole` object, which could be used as a consumer of the output of benchmarking method.
 That'd prevent an unwanted dead code elimination by JVM.
 
-### 2.1.4 SetUp / TearDown
+### 3.2.4 SetUp / TearDown
 Given the nature of the original method and the fact it generates sequence of the numbers on demand, no set up or tear down actions are needed.
 
-## 2.2 Execution
-JVM options: `-Xms4096m -Xmx4096m -Xss1024k`
+# 4. Code enhancements
+The section lists enhancements that had been made to the original implementation of prime numbers calculator.
 
-
-# 3. Code enhancements
-The section lists description of enhancements made to the code.
-
-## 3.1 Enhance "isPrime(...)" method
+## 4.1 "isPrime(...)" method
 ```
     private static void isPrime(List<Integer> primeNumbers, Integer candidate) throws Exception {
         for (Integer j : primeNumbers.subList(0, candidate - 2)) {
@@ -295,7 +334,8 @@ New:
     }
 ```
 
-## 3.1 Thread execution
+## 4.2 Concurrency level and execution
+The original implementation uses thread pool with at least 3000 threads.
 ```
 public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
    ...
@@ -308,240 +348,96 @@ During execution, each worker thread locks the queue, dequeue a task and remove 
 In case a task is short (non-IO-bound), there's a lot of contention within the queue.
 An alternative would be the use of lock-free queue, however, that would result into different issues related to distribution of the tasks.
 
-In work-stealing techniques, each thread has its own queue. In case it runs out of tasks - it "steals" the tasks from other threads. 
+An alternative to that would be work-stealing techniques, each thread has its own queue. In case it runs out of tasks - it "steals" the tasks from other threads. 
 Thus, the contention between threads is lower.
 
 In Java, work stealing technique is implemented within [ForkJoin](https://docs.oracle.com/javase/tutorial/essential/concurrency/forkjoin.html) framework.
+`ForkJoinPool`, according to documentation, keeps given amount of threads **active** at any moment of time.
+We could create a pool with ForkJoin work stealing model via `newWorkStrealingPool(...)` method. Unlike `ForkJoinPool.commonPool(...)`, 
+it creates an asynchronous thread pool with first-in-first-out (FIFO) queue configuration, which reduces contention between idle workers.
 
-One of these thread pool is Java is `newWorkStrealingPool`. It's worth to mention that there's 1 use case that makes it less efficient - synchronous I/O.
-In that case, the cores wouldn't be utilized, as the thread will be waiting for the I/O to finish. An alternative to that would be `ForkJoinPool`, since it keeps all threads within pool active at any given moment of time, which saturates CPU.
-Considering the context of this task, we don't expect any synchronous I/O, thus `newWorkStealingPool` should be sufficient.
+As a result, the code had been changed to the following:
+```
+    public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
+         ...
+        final int cores = Runtime.getRuntime().availableProcessors();
+        ExecutorService executors = Executors.newWorkStealingPool(cores);
 
-Based on different JVM implementations, `newWorkStrealingPool` might be a pre-configured `ForkJoinPool`.
+...
+}
+```
 
-(!) Thread pool's capacity depends on the environment (cores, JVM limits for available processes, etc.). Assuming that'd be a part of server-side logic, instead of hard-coding the value or multiplies based on available cores, I'd let user specify it via configuration options.
+**A note on concurrency level**: by default, I'm using the amount of available processors as a concurrency level here. However,
+assuming the algorithm would be a part of server-side logic, instead of hard-coding the value, I'd let user set it via configuration options.
+Thus, in case the application would be launched in different, shared environments, such as `Kubernetes` cluster, the user would be able to
+implicitly define concurrency level.
+
+## 4.3 Redundant use of BigIntegerIterator
+As stated in both CPU and Heap analysis, given the fact we use 2 collections within each `BigIntegerIterator` instance, as well as 
+keeping separate collection with all non-prime numbers that have to be removed (`primeNumbersToRemove`), we introduce significant CPU / RAM
+pressure and, therefore, performance penalty.
+
+With that regard, the following enhancements have been made:
+- `BigIntegerIterator` class had been eliminated.
+- Generation of Collection containing all integers from range `[2; maxPrime]` prior to determination of prime numbers 
+had been replaced with a simple for-loop.
+- Separate collection for non-prime numbers had been eliminated. Now, we store only prime numbers, which would be used as a return value.
+```
+public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
+        ...
+        ConcurrentLinkedQueue<Integer> primeNumbersQueue = new ConcurrentLinkedQueue<>();
+        CountDownLatch latch = new CountDownLatch(maxPrime - 2);
+        for (int i = 2; i <= maxPrime; i++) {
+            // final efficiency requirement
+            final int candidate = i;
+            executors.submit(() -> {
+                if (isPrime(candidate)) {
+                    primeNumbersQueue.add(candidate);
+                }
+                latch.countDown();
+            });
+        }
+        ...
+        return Arrays.asList(primeNumbersQueue.toArray(new Integer[0]));
+}
+```
 
 
-# Existing algorithms
-
+# 5. Existing algorithms
 An alternative the enhancement of current approach would be usage of existing algorithms for determination of prime numbers.
 
 An example of such algorithms is [Sieve of Eratosthenes](https://en.wikipedia.org/wiki/Sieve_of_Eratosthenes), which finds 
 prime numbers up to given limit. It's based on sequential identification of numbers that are divisible by primes.
 
-# Experiments
+
+# 6. Experiments
+The section contains details about conducted experiments and their configurations.
 System.out.println (standard output) had been excluded from measurement, since the ways to provide the results may vary (serialization, send over the wire, etc.)
 
-
-# Thread count test
-Thread count test:
+## 6.1 Test configuration
+* **Input argument - max prime number**. Within original implementation, I've observed significant (1 second+) GC pauses while specifying ~15,000 as max prime number.
+Thus, the following options have been determined to provide repeatable results, yet fullfill an efficient amount of CPU / Heap samples 
+during profiling: 1000, 10000, 50000.
 ```
-Thread count: 4041
-Thread count: 4043
-Thread count: 4045
-Thread count: 4047
-Thread count: 4049
-Thread count: 4051
+@Param({"1000", "10000", "50000"})
+public int maxPrimeNumber;
 ```
-
-# Task-unrelated notes
-
-## MacBook Air M1 - thread limitations
-Value changed: 100 -> 100000 in order to increase amount of samples collected.
-
-As a result - Java OOM. Do we need to create that many threads? (certainly not)
-It's such an expensive operation.
-Starting from ~5000, on my macbook, I observed inability to create new thread (208 threads). It's abnormal and related to JVM configuration on my macbook,
-
+* **Warmup iterations**. The motivation behind warmup iterations have been described in [3.2.2  Warmup iterations](#322-warmup-iterations).
+In order to decrease the probability of lazy class loading and JIT affection onto results, it was decided to set 3 warmup iterations.
 ```
-Exception in thread "main" java.lang.OutOfMemoryError: unable to create new native thread
-	at java.lang.Thread.$$YJP$$start0(Native Method)
-	at java.lang.Thread.start0(Thread.java)
-	at java.lang.Thread.start(Thread.java:719)
-	at java.util.concurrent.ThreadPoolExecutor.addWorker(ThreadPoolExecutor.java:957)
-	at java.util.concurrent.ThreadPoolExecutor.execute(ThreadPoolExecutor.java:1367)
-	at java.util.concurrent.AbstractExecutorService.submit(AbstractExecutorService.java:112)
-	at PrimeCalculator.getPrimes(PrimeCalculator.java:55)
-	at PrimeCalculator.main(PrimeCalculator.java:29)
-Error occurred during initialization of VM
-java.lang.OutOfMemoryError: unable to create new native thread
-
-Process finished with exit code 1
+@Fork(value = 1, warmups = 3)
 ```
-![img.png](img.png)
+* **Heap size.** In case Java heap size is not constant, JVM would be adjusting heap size to keep a reasonably available free space
+(`MinHeapFreeRatio`, `MaxHeapFreeRatio`) for live object at each GC iteration (see: [Java SE 8 documentation @ Oracle](https://docs.oracle.com/javase/8/docs/technotes/guides/vm/gctuning/sizing.html)).
+In order to increase repeatability of the results, it's possible to prevent JVM from making heap sizing decisions by specifying
+equal minimal and maximal heap size, 4GB each: `-Xms4000m -Xmx4000m`.
 
-Abnormal due ot amount of threads mac could handle
-``` 
-% sysctl kern.num_threads
-kern.num_threads: 10240
-```
-Basically, `ulimit` controls resources available to the shell and its processes, where launchctl controls maximum resources to the system and its processes.
-Looking at `ulimit` statistics for the current, we could see that the current limit is 1333 threads. Unix, by design, don't restrict the amount of processes a user could spawn.,
-```
-andreykoltsov@Andreys-MacBook-Air ~ % ulimit -a
--t: cpu time (seconds)              unlimited
--f: file size (blocks)              unlimited
--d: data seg size (kbytes)          unlimited
--s: stack size (kbytes)             8176
--c: core file size (blocks)         0
--v: address space (kbytes)          unlimited
--l: locked-in-memory size (kbytes)  unlimited
--u: processes                       1333
--n: file descriptors                2560
-```
 
-Kernel limit is 2k, thus its max available hard limit for all users:
-```
- sysctl -a |grep kern | grep proc
-kern.maxproc: 2000
-```
+## 6.2 Baseline - benchmark of original implementation
+In order to get the numerical representation of performance enhancements conducted in the form of code changes, it's 
+necessary to determinate the baseline - performance of the original implementation.
 
-To make persistent change in macOS for kernel parameters, we could modify launch daemon:
-```
-
-$ sudo vi /Library/LaunchDaemons/com.startup.sysctl.plist
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.startup.sysctl</string>
-    <key>LaunchOnlyOnce</key>
-    <true/>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/usr/sbin/sysctl</string>
-        <string>kern.maxproc=50000</string>
-    </array>
-    <key>RunAtLoad</key>
-    <true/>
-</dict>
-</plist>
-
-```
-
-To apply launch daemon changes:
-```
-sudo chown root:wheel /Library/LaunchDaemons/com.startup.sysctl.plist
-sudo launchctl load /Library/LaunchDaemons/com.startup.sysctl.plist
-```
-... but it didn't work on BigSur - the limit had stayed to be 2k.
-
-Looking at launchctl statistics, we could see that soft limit for processes is 1.3k and hard limit is 2k
-```
-sudo launchctl limit
-        cpu         unlimited      unlimited      
-        filesize    unlimited      unlimited      
-        data        unlimited      unlimited      
-        stack       8372224        67092480       
-        core        0              unlimited      
-        rss         unlimited      unlimited      
-        memlock     unlimited      unlimited      
-        maxproc     1333           2000           
-        maxfiles    256            unlimited      
-```
-
-Let's change it:
-```
-sudo launchctl limit maxproc 20000 100000
-
-```
-In order to have an efficient benchmarking, let's update the amount of processes that current user could spawn up to 100k.
-```
-ulimit -u 100000
-```
-
-MacOS could run in server performance mode (https://apple.stackexchange.com/questions/373035/fix-fork-resource-temporarily-unavailable-on-os-x-macos/373036#373036)
-```
-sudo nvram boot-args="serverperfmode=1 $(nvram boot-args 2>/dev/null | cut -f 2-)"
-```
-Afterwards, amount of threads finally increased:
-```
-sudo sysctl kern.num_threads
-kern.num_threads: 10240
-```
-
-Afterwards, in order to let JVM use these processes, I've increased user limit:
-```
-sudo launchctl limit maxproc 10000 10000
-```
-
-Afterwards, the change of user limit worked without any error:
-```
-sudo ulimit -u 10000
-```
-
-Since the change is only possible to make under 'root', I've re-launched Idea via `sudo`:
-```
-sudo /Applications/IntelliJ\ IDEA\ CE.app/Contents/MacOS/idea
-```
-
-By default, each thread has 512kb in RAM. It could be changed using Xss.
-
-As a result, experiment had been run with custom JVM options in order to increase heap size.
-
-# Issues
-## Idea - unterminated process in case native thread couldn't be created
-(IDEA had been launched under `sudo`)
-In case Java OOM had occurred:
-```
-Exception in thread "main" java.lang.OutOfMemoryError: unable to create new native thread
-```
-Intellij Idea seems to keep restarting the process - it keeps appearing within the system (ref.: `ps aux`)
-Perhaps it's trying to create a heap dump?
-When trying to close the IDEA, it keeps trying to death the process as well - it prevents it from successful termination of IDE.
-
-After clicking "terminate", it tries to terminate the app, but didn't succeed.
-Afterwards, I click "cancel" and repeat the process. Afterwards, the project is successfully closed.
-
-## YourKit - allocation profiling issue
-Allocation profiling is started within YourKit, yet no related data is shown.
-![img_11.png](img_11.png)
-
-Port statistics:
-```
-$ lsof -i :10001
-COMMAND    PID          USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
-profiler 16735 andreykoltsov   27u  IPv6 0xd62e9a0c1d349b07      0t0  TCP localhost:58978->localhost:scp-config (ESTABLISHED)
-java     16833 andreykoltsov    9u  IPv4 0xd62e9a0c22a56627      0t0  TCP localhost:scp-config (LISTEN)
-java     16833 andreykoltsov   37u  IPv4 0xd62e9a0c1aa0fa57      0t0  TCP localhost:scp-config->localhost:58978 (ESTABLISHED)
-```
-Once memory snapshot is captured, all object don't have any allocation information.
-![img_12.png](img_12.png)
-
-Allocation profiling configuration:
-![img_13.png](img_13.png)
-
-It seems that each object had been recorded, yet memory snapshot contains mostly unreachable objects with unknown allocations.
-
-On Windows with 60k primes as an input, allocation profiling worked, but when I've tried to capture memory snapshot, 
-the following message appeared, yet application was still running:
-![img_14.png](img_14.png)
-Allocation profiling with 60k and Thread.sleep(10000) in order to start allocation profiling
-
-# Execution of tests results - new Aug 6th - Windows laptop
-
-The section contains details about conducted experiments and their configurations.
-
-## Test configuration
-Within environment, I've used, running the original implementation with more than 10,000 numbers results into the creation of an equal, 10,000 threads within the pool.
-Given the use of `synchronized` keyword, multiple threads are spending significant amount of time waiting to acquire the lock, while new tasks are being send to executor service.
-
-As a result, the application terminates with Java OOM, while the results are incomparable.
-
-Therefore, I've decided to use the following inputs as an arguments for comparison between the solutions: "1000", "5000", "10000"
-
-### Heap size
-In case Java heap size is not constant, JVM would be adjusting heap size to keep a reasonably available free space (`MinHeapFreeRatio`, `MaxHeapFreeRatio`) for live object at each GC iteration. Details: [Java SE 8 documentation @ Oracle](https://docs.oracle.com/javase/8/docs/technotes/guides/vm/gctuning/sizing.html).
-
-In order to increase repeatability of the results, it's possible to prevent JVM from making heap sizing decisions. In order to achieve that, within the test, minimal and maximal heap size had been set to 4GB each.
-
-That had been achieved by the application of the following JVM options: `-Xms4000m -Xmx4000m`
-
-## Determine baseline - benchmark original implementation
-Prior to running the experiment with different versions of enhanced prime number calculator, that'd be useful to determine the baseline - results achieved by benchmarking the original implementation.
-
-Therefore, comparing the results of further enhancements with the baseline, we'd be able to evaluate the enhancements committed to the original implementation.
+The results could be found below.
 ``` 
 Andrey, [6 Aug 2022, 16:15:10]:
 CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.00            1000  sample            93,061             ms/op
@@ -572,77 +468,14 @@ CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.999
 CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p1.00           10000  sample         13019,120             ms/op
 ```
 
-## Experiment - exceptions
 
-Program flow is controller with exceptions. Using LinkedList, fixed thread pool, queue,
-```
-    public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
-        ...
-        executors.submit(() -> {
-                try {
-                    isPrime(candidate);
-                    primeNumbersQueue.add(candidate);
-                } catch (Exception e) {
-                    // not a prime
-                }
-                latch.countDown();
-            });
-        ....
-    }
+## 6.3 Elimination of excessive objects
+Changes made:
+* **Exceptions**. As stated in [4.1  "isPrime(...)" method](#41-isprime-method), the control of application from had been 
+changed from using `Exception` to boolean value.
+* **Collections (BigInteger Iterator, primeNumbersToRemove)**. As stated in [4.3 Redundant use of BigIntegerIterator](#43-redundant-use-of-bigintegeriterator),
+the change was aimed at removal of `BigIntegerIterator` class, as well as other unnecessary collections mentioned in [2.4 Heap analysis - 50,000 numbers, 50,000 threads](#24-heap-analysis---50000-numbers-50000-threads).
 
-    private static void isPrime(Integer number) throws Exception {
-       ...
-        if (number < 2 || number % 2 == 0) {
-            throw new Exception();
-        }
-        ...
-        for (int i = 3; i < number; i+= 2) {
-            if (number % i == 0) {
-                throw new Exception();
-            }
-        }
-        ...
-    }
-    
-```
-
-
-Results:
-
-```
-Benchmark                                                              (iterations)    Mode    Cnt   Score   Error  Units
-CalculatorBenchmark.runEnhancedBenchmark                                       1000  sample  31803   1,571 � 0,004  ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.00            1000  sample          1,112          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.50            1000  sample          1,528          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.90            1000  sample          1,778          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.95            1000  sample          1,935          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.99            1000  sample          2,482          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.999           1000  sample          2,967          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.9999          1000  sample          4,053          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p1.00            1000  sample          4,841          ms/op
-CalculatorBenchmark.runEnhancedBenchmark                                       5000  sample   9075   5,507 � 0,020  ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.00            5000  sample          4,235          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.50            5000  sample          5,390          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.90            5000  sample          6,259          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.95            5000  sample          6,586          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.99            5000  sample          7,391          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.999           5000  sample          8,921          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.9999          5000  sample         23,101          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p1.00            5000  sample         23,101          ms/op
-CalculatorBenchmark.runEnhancedBenchmark                                      10000  sample   4623  10,813 � 0,036  ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.00           10000  sample          8,831          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.50           10000  sample         10,699          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.90           10000  sample         11,715          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.95           10000  sample         12,321          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.99           10000  sample         13,398          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.999          10000  sample         14,424          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.9999         10000  sample         14,844          ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p1.00           10000  sample         14,844          ms/op
-```
-## Experiment - LinkedList
-```
-List<Integer> primeNumbersQueue = Collections.synchronizedList(new LinkedList<>());
-```
 
 Results:
 ```
@@ -675,50 +508,15 @@ CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.999          
 CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.9999         10000  sample          8,520          ms/op
 CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p1.00           10000  sample          8,520          ms/op
 ```
-## Experiment - fixed thread pool
-Reduced threads within pool 
-Code:
-```
-final int cores = Runtime.getRuntime().availableProcessors();
-ExecutorService executors = Executors.newFixedThreadPool(cores);
-```
-Results:
-``` 
-CalculatorBenchmark.runEnhancedBenchmark                                       1000  sample  47841     1,044 �   0,004  ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.00            1000  sample            0,718            ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.50            1000  sample            0,988            ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.90            1000  sample            1,214            ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.95            1000  sample            1,444            ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.99            1000  sample            1,962            ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.999           1000  sample            2,776            ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.9999          1000  sample            4,831            ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p1.00            1000  sample           16,597            ms/op
-CalculatorBenchmark.runEnhancedBenchmark                                       5000  sample  17309    2,887 �    0,009  ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.00            5000  sample           1,989             ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.50            5000  sample           2,839             ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.90            5000  sample           3,334             ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.95            5000  sample           3,539             ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.99            5000  sample           3,990             ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.999           5000  sample           4,792             ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.9999          5000  sample           6,136             ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p1.00            5000  sample           6,136             ms/op
-CalculatorBenchmark.runEnhancedBenchmark                                      10000  sample   8793     5,683 �   0,015  ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.00           10000  sample            4,497            ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.50           10000  sample            5,628            ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.90           10000  sample            6,185            ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.95           10000  sample            6,540            ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.99           10000  sample            7,103            ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.999          10000  sample            7,755            ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.9999         10000  sample           10,977            ms/op
-CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p1.00           10000  sample           10,977            ms/op
-```
 
+## 6.4 Change of concurrency level and management
 
-## Experiment - work stealing thread pool 
-Code:
-```
-ExecutorService executors = Executors.newWorkStealingPool();
-```
+Changes made:
+* **Concurrency level**. Given the suggestions made in [4.2 Concurrency level and execution](#42-concurrency-level-and-execution) based on 
+[2. CPU and Memory analysis](#2-cpu-and-memory-analysis), concurrency level had been reduced from "at least 3000" down to the amount of available processors.
+* **Concurrency management**. As suggested in [4.2 Concurrency level and execution](#42-concurrency-level-and-execution),
+work-stealing approach had been applied to our use case.
+
 
 Results:
 ```
@@ -754,10 +552,160 @@ CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p1.00           
 CalculatorBenchmark.runOriginalImplementation                                            1000  sample    410    122,600 �    1,715  ms/op
 ```
 
-# Visualization
+# 7. Visualization
 In order to simplify the comparison, automation for the visualization of JMH measurements had been implemented.
 ![img_10.png](img_10.png)
 Please, refer to [visualization](visualization)
 
+
+# Thread count test
+Thread count test:
+```
+Thread count: 4041
+Thread count: 4043
+Thread count: 4045
+Thread count: 4047
+Thread count: 4049
+Thread count: 4051
+```
+
+# Issues
+
+## MacBook Air M1 - thread limitations
+
+On MacBook Air (M1, 2020), the original implementation of PrimeCalculator had been crashing in case `maxPrime` had been set to
+value higher than ~2000, while most of Windows laptops were capable of handling 250,000+ threads.
+Thus, the sample size collected during profiling of application had been insufficient.
+```
+Exception in thread "main" java.lang.OutOfMemoryError: unable to create new native thread
+	at java.lang.Thread.$$YJP$$start0(Native Method)
+	at java.lang.Thread.start0(Thread.java)
+...
+Error occurred during initialization of VM
+java.lang.OutOfMemoryError: unable to create new native thread
+
+Process finished with exit code 1
+```
+
+Looking at kernel configuration, we could see it could handle 10,000 threads.
+``` 
+% sysctl kern.num_threads
+kern.num_threads: 10240
+```
+Looking at `ulimit` statistics for the current user, we could see that the current limit is 1333 threads. 
+```
+andreykoltsov@Andreys-MacBook-Air ~ % ulimit -a
+-t: cpu time (seconds)              unlimited
+-f: file size (blocks)              unlimited
+-d: data seg size (kbytes)          unlimited
+-s: stack size (kbytes)             8176
+-c: core file size (blocks)         0
+-v: address space (kbytes)          unlimited
+-l: locked-in-memory size (kbytes)  unlimited
+-u: processes                       1333
+-n: file descriptors                2560
+```
+
+Looking at kernel limit, we could assume it's a (currently) hard-limit for max processes for the user.
+```
+ sysctl -a |grep kern | grep proc
+kern.maxproc: 2000
+```
+
+In order to modify the hard limit on macOS Big Sur, we should register a new launch deamon. The process if the following:
+```
+# 1. Create manifest for launch daemon.
+
+$ sudo vi /Library/LaunchDaemons/com.startup.sysctl.plist
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.startup.sysctl</string>
+    <key>LaunchOnlyOnce</key>
+    <true/>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/usr/sbin/sysctl</string>
+        <string>kern.maxproc=50000</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>
+
+# 2. Register launch daemin
+sudo chown root:wheel /Library/LaunchDaemons/com.startup.sysctl.plist
+sudo launchctl load /Library/LaunchDaemons/com.startup.sysctl.plist
+
+```
+
+Unfortunately, it didn't work - the limit had stayed to be 2k even after the reboot.
+
+
+
+
+Alternative approach - try to run macOS could run in [server performance mode](https://apple.stackexchange.com/questions/373035/fix-fork-resource-temporarily-unavailable-on-os-x-macos/373036#373036)
+```
+sudo nvram boot-args="serverperfmode=1 $(nvram boot-args 2>/dev/null | cut -f 2-)"
+```
+
+
+Afterwards, the attempts to set `maxproc` to value higher than hard limit didn't return an error (unlike previous attempts), yet, the value
+remained consistent - 2000 processes. 
+
+As an alternative, in order to be able to use hard limit (`maxproc` 2000 instead of 1333), I've launched IntelliJ IDEA as root:
+```
+sudo /Applications/IntelliJ\ IDEA\ CE.app/Contents/MacOS/idea
+```
+
+## YourKit - allocation profiling issue
+Allocation profiling is started within YourKit, yet no related data is shown.
+![img_11.png](img_11.png)
+
+Port statistics:
+```
+$ lsof -i :10001
+COMMAND    PID          USER   FD   TYPE             DEVICE SIZE/OFF NODE NAME
+profiler 16735 andreykoltsov   27u  IPv6 0xd62e9a0c1d349b07      0t0  TCP localhost:58978->localhost:scp-config (ESTABLISHED)
+java     16833 andreykoltsov    9u  IPv4 0xd62e9a0c22a56627      0t0  TCP localhost:scp-config (LISTEN)
+java     16833 andreykoltsov   37u  IPv4 0xd62e9a0c1aa0fa57      0t0  TCP localhost:scp-config->localhost:58978 (ESTABLISHED)
+```
+Once memory snapshot is captured, all object don't have any allocation information.
+![img_12.png](img_12.png)
+
+Allocation profiling configuration:
+![img_13.png](img_13.png)
+
+It seems that each object had been recorded, yet memory snapshot contains mostly unreachable objects with unknown allocations.
+
+On Windows with 60k primes as an input, allocation profiling worked, but when I've tried to capture memory snapshot, 
+the following message appeared, yet application was still running:
+![img_14.png](img_14.png)
+Allocation profiling with 60k and Thread.sleep(10000) in order to start allocation profiling
+
+# Troubleshooting
+
+##  Missing /META-INF/BenchmarkList
+The following error might occur while launching JMH benchmark:
+```
+Exception in thread "main" java.lang.RuntimeException: ERROR: Unable to find the resource: /META-INF/BenchmarkList 
+at org.openjdk.jmh.runner.AbstractResourceReader.getReaders(AbstractResourceReader.java:96) 
+at org.openjdk.jmh.runner.BenchmarkList.find(BenchmarkList.java:104) at org.openjdk.jmh.runner.Runner.internalRun(Runner.java:256) 
+at org.openjdk.jmh.runner.Runner.run(Runner.java:206) 
+at com.test.BTest.main(BTest.java:24)
+...
+```
+In order to fix that, please:
+1. Ensure all dependencies specified within [build.gradle](build.gradle) are loaded.
+2. If (1) didn't help, please, explicitly specify JDK path into gradle.properties. Please, ensure the path points to JDK, not JRE.
+```
+$ cat gradle.properties
+org.gradle.java.home=<full path to JDK>
+```
+
+
 # Further enhancements
-It's possible to automate the profiling via CLI solutions, such as async profiler.
+- It's possible to automate the profiling via CLI solutions, such as async profiler.
+- JMH results could be exported in a convenient file format, for example: CSV. We could leverage that for visualization purposes.
