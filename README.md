@@ -37,13 +37,15 @@
 
 
 # 1. Overview
-Investigating the performance of calculator of prime numbers using [YourKit](https://www.yourkit.com) Java profiler.
+Qualification, characterization and improvement the performance of prime number's calculator.
+
+CPU, RAM and Lock analysis have been done via [YourKit](https://www.yourkit.com) Java profiler, the comparison between different
+implementation have been done via [Java Microbenchmark Harness (JMH)](https://github.com/openjdk/jmh). In order to simplify comparison between the builds, automation for [visualization of JMH results](#71-visualization) have been implemented.
+
 
 The repository contains original code sample, YourKit's CPU and Allocation profiling data, its analysis and code enhancements.
 
-In order to compare different solutions, performance tests have been automated using [Java Microbenchmark Harness (JMH)](https://github.com/openjdk/jmh).
-In order to simplify comparison between the builds, automation for [visualization of JMH results](#71-visualization) have been implemented.
-
+In order to view the final results, please, see [7.2  Comparison of implemented algorithms](#72-comparison-of-implemented-algorithms)
 
 ## 1.1 Prerequisites
 
@@ -98,9 +100,9 @@ public static List<Integer> getPrimes(int maxPrime) throws InterruptedException 
 ```
 Afterwards, the application had been profiled using Yourkit.
 
-![img_3.png](img_3.png)
+![cpu-analysis-1500-threads-call-tree.png](documentation/cpu-analysis-1500-threads-call-tree.png)
 A more simple view would be in the form of flamegraph:
-![img_5.png](img_5.png)
+![cpu-analysis-1500-threads-flame-graph.png](documentation/cpu-analysis-1500-threads-flame-graph.png)
 
 Looking at ([500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot](snapshots/cpu/500k-primes-1500-threads-PrimeCalculator-2022-07-28.snapshot)),
 the following observations had been made:
@@ -131,7 +133,7 @@ public static List<Integer> getPrimes(int maxPrime) throws InterruptedException 
 }
 ```
 
-![img_8.png](img_8.png)
+![cpu-analysis-50000-threads-call-tree.png](documentation/cpu-analysis-50000-threads-call-tree.png)
 Looking at [50k-primes-cpu-PrimeCalculator.snapshot](snapshots/cpu/50k-primes-cpu-PrimeCalculator.snapshot), the following observations could be made:
 * Most (92%) of the operations within CPU samples are dedicated to thread's initialization, while only 7% is dedicated to 
 actual business logic - determination of prime numbers.
@@ -159,7 +161,7 @@ contention within the queue is unavoidable.
 
 ## 2.4 Heap analysis - 50,000 numbers, 50,000 threads
 
-![img_15.png](img_15.png)
+![heap-analysis-50000-threads.png](documentation/heap-analysis-50000-threads.png)
 Looking at [snapshots/allocation/60k-allocation-profiling-original.csv](snapshots/allocation/60k-allocation-profiling-original.csv), the following 
 observations could be made:
 1. **Redundant use of `BigIntegerIterator`**. We generate [2; maxPrime] instances of `BigIntegerIterator` and append it onto Collection.
@@ -225,7 +227,7 @@ Excessive allocation of objects could be found in:
 ## 2.5 Lock analysis
 During CPU profiling, YourKit reported potential deadlock.
 
-![img_1.png](img_1.png)
+![img_1.png](documentation/lock-analysis-deadlock.png)
 In my assumption, it's not a logical deadlock, but rather the indicator that multiple threads are waiting for the acquisition of 
 resources for more than 10 seconds. Such behavior is caused by the combination of the following factors:
 1. `Executors.newFixedThreadPool(...)`  uses `LinkedBlockingQueue` for executable tasks.
@@ -482,7 +484,7 @@ work-stealing approach had been applied to our use case.
 Results (raw output of JMH): [experiment-4-work-stealing-pool.txt](visualization/results-plain-text/3-enhanced-work-stealing-thread-pool.txt)
 
 ## 6.5 Visualization of enhancements
-![img_17.png](img_17.png)
+![img_17.png](documentation/comparison-chart-enhancements-of-code.png)
 
 | Algorithm | maxPrime - 1000 | maxPrime - 5000 | maxPrime - 10000 |
 | ------ | --- | --- | --- |
@@ -509,7 +511,7 @@ Please, refer to [visualization](visualization).
 
 The section includes comparison of performance experiments' results between each implemented algorithm.
 
-![img_16.png](img_16.png)
+![img_16.png](documentation/comparison-chart-algorithms.png)
 
 | Algorithm | maxPrime - 1000 | maxPrime - 10000 | maxPrime - 50000 |
 | ------ | --- | --- | --- |
@@ -625,7 +627,7 @@ sudo /Applications/IntelliJ\ IDEA\ CE.app/Contents/MacOS/idea
 
 ## 8.2 YourKit - allocation profiling issue
 Allocation profiling is started within YourKit, yet no related data is shown.
-![img_11.png](img_11.png)
+![img_11.png](documentation/allocation-profiling-issue-macos-general.png)
 
 Port statistics:
 ```
@@ -636,16 +638,16 @@ java     16833 andreykoltsov    9u  IPv4 0xd62e9a0c22a56627      0t0  TCP localh
 java     16833 andreykoltsov   37u  IPv4 0xd62e9a0c1aa0fa57      0t0  TCP localhost:scp-config->localhost:58978 (ESTABLISHED)
 ```
 Once memory snapshot is captured, all object don't have any allocation information.
-![img_12.png](img_12.png)
+![img_12.png](documentation/allocation-profiling-issue-macos-no-alloc-data.png)
 
 Allocation profiling configuration:
-![img_13.png](img_13.png)
+![img_13.png](documentation/allocation-profiling-issue-macos-configuration.png)
 
 It seems that each object had been recorded, yet memory snapshot contains mostly unreachable objects with unknown allocations.
 
 On Windows with 60k primes as an input, allocation profiling worked, but when I've tried to capture memory snapshot, 
 the following message appeared, yet application was still running:
-![img_14.png](img_14.png)
+![img_14.png](documentation/allocation-profiling-issue-macos-windows.png)
 Allocation profiling with 60k and Thread.sleep(10000) in order to start allocation profiling
 
 # 9. Troubleshooting
