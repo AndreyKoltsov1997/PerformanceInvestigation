@@ -477,6 +477,14 @@ Results (raw output of JMH): [experiment-4-work-stealing-pool.txt](visualization
 | Enhancement - removal of redundant objects, duration, ms/op, <br/> 95th percentile | 1.25  | 3.47  | 6.72	 |
 | Enhancement - work stealing thread pool, ms/op, <br/> 95th percentile | 1.22  | 2.26 | 4.02 |
 
+Looking at the results, the following observations could be made:
+* **Removal of redundant collections and prevention of spawning multiple exceptions as a return value had significant increased 
+the performance.** It's expected - creation and handling of exceptions, storage of all collections within each `BigIntegerIterator`
+instance, operations for the removal of non-prime numbers from the list - each of them introduces higher CPU and heap pressure, thus
+increase performance penalty.
+* **The effect of using work stealing within thread pool increases in proportion to specified max prime number**. It could
+be explained by the fact that lower amount of numbers within range [2; maxPrime] causes fewer tasks within thread pool's queue, thus
+less contention.
 
 # 7. Results
 
