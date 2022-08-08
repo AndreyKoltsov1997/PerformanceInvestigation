@@ -2,6 +2,7 @@ import os, sys, getopt
 from argparse import ArgumentError
 from collections import defaultdict
 import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import csv
 
 """
@@ -12,10 +13,9 @@ class BenchmarkMeasurement:
         self.sample_size = int(sample_size)
         self.percentile = percentile
         # -- JMH prints results as "0,124", "1,123" and all of them are integer. ...
-        # ... I haven't found a locale option that'd handle it without errors, thus repliacing ...
+        # ... I haven't found a locale option that'd handle it without errors, thus replacing ...
         # ... it manually.
-        self.value = float(value.replace(',', ''))
-        print(f"debug value: {self.value}")
+        self.value = float(value.replace(',', '.'))
         # Operations per second, operations per nanosecond, etc.
         self.measurement = measurement
 
@@ -82,7 +82,9 @@ def __get_jmh_measurements_from_reader_object(reader_obj: object, is_csv: bool):
 
     for line in reader_obj:
         try:
-            jmh_measurement = __get_jmh_measurement_from_csv_line(line) if is_csv else __get_jmh_measurement_from_line(line)
+            jmh_measurement = (__get_jmh_measurement_from_csv_line(line) 
+                                if is_csv 
+                                else __get_jmh_measurement_from_line(line))
         except Exception as e:
             print(f"Unable to parse line: {line} \n {e}")
             continue
@@ -96,12 +98,11 @@ def __get_jmh_measurements_from_reader_object(reader_obj: object, is_csv: bool):
 
 def __get_plottable_jmh_data_from_csv_file(file_path: str) -> dict:
     """
-    Parses file that contains JMH measurements.
+    Retrieves JMH measurements in a plottable format from CSV file.
     :param file_path: - path to file with measurements
     :returns: dictionary: <sample size> - <[measurements]
     """
     data = defaultdict(list)
-
     with open(file_path) as file:
         reader_obj = csv.reader(file)
         data = __get_jmh_measurements_from_reader_object(reader_obj=reader_obj, is_csv=True)
@@ -110,16 +111,15 @@ def __get_plottable_jmh_data_from_csv_file(file_path: str) -> dict:
 
 def __get_plottable_jmh_data_from_plain_text_file(file_path: str) -> dict:
     """
-    Parses file that contains JMH measurements.
+    Retrieves JMH measurements in a plottable format from plain text file.
     :param file_path: - path to file with measurements
     :returns: dictionary: <sample size> - <[measurements]
     """
     data = defaultdict(list)
-
     with open(file_path) as file:
         data = __get_jmh_measurements_from_reader_object(reader_obj=file, is_csv=False)
-
     return data
+
 
 def plot_jmh_measurements(datasource_path: str, percentile: int, is_plain_text: bool = False) -> None:
     """
@@ -140,6 +140,8 @@ def plot_jmh_measurements(datasource_path: str, percentile: int, is_plain_text: 
                                                         else __get_plottable_jmh_data_from_csv_file(filepath))
     
     # -- Visualize Data
+    fig, ax = plt.subplots()
+    ax.ticklabel_format(useOffset=False)
     for filename, sample_size_to_jmh_data in fname_with_plottable_data.items():
         x_values = sorted(sample_size_to_jmh_data.keys())
         y_values = list()
@@ -147,12 +149,17 @@ def plot_jmh_measurements(datasource_path: str, percentile: int, is_plain_text: 
             # -- get certain percentile for given sample size
             measurement = __get_jmh_measurement_matching_criteria(sample_size_to_jmh_data[size], size, f"{percentile}th")
             y_values.append(measurement.value)
-        plt.plot(sorted(x_values), y_values, marker='o', label=filename)
+        ax.plot(sorted(x_values), y_values, marker='o', label=filename)
 
     plt.title(f"Java Microbenchmark Harness, {percentile}th percentile")
-    plt.xlabel('Sample size')
-    plt.ylabel('Score, ms/op')
-    plt.legend(loc='upper center')
+    plt.xlabel('Max Prime Number')
+    plt.ylabel('Duration, ms/op')
+    plt.legend(loc='upper left')
+    
+    # Set log scale that'd print actual values instead of power of 10s. Note that ...
+    # ... the order is important - ticket should format axis after log scale is set.
+    plt.yscale('log')
+    ax.yaxis.set_major_formatter(ticker.FuncFormatter(lambda y, _: '{:g}'.format(y)))
     plt.show()
 
 
