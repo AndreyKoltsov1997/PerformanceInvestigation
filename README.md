@@ -182,7 +182,8 @@ List<BigIntegerIterator> myFiller = Stream.generate(new Supplier<BigIntegerItera
         }).limit(maxPrime).collect(Collectors.toList());
 ```
 2. **Creation of Runnable tasks**. Given the nature of the application - concurrent determination of prime numbers - the creation
-of such objects is reasonable. Yet, as stated within CPU profiling ([2.3  CPU analysis - 50,000 numbers, 50,000 threads](#23-cpu-analysis---50000-numbers-50000-threads), concurrency level and thread pool implementation
+of such objects is reasonable. Yet, as stated within CPU profiling 
+([2.3  CPU analysis - 50,000 numbers, 50,000 threads](#23-cpu-analysis---50000-numbers-50000-threads), concurrency level and thread pool implementation
 could be changed.
 3. Conversion of `String` to `Integer`. As stated in (1), there's no need to store integer value and its string representative separately.
 Thus, this part of the code could be eliminated.
