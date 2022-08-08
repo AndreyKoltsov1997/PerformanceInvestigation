@@ -17,7 +17,6 @@ public class PrimeCalculatorSieveOfEratosthenes {
      * @return list of prime numbers from range [2; maxPrime].
      */
     public static List<Integer> getPrimes(final int maxPrime) {
-
         // Create a "table" of numbers [2; maxPrime] and mark all of them as 'true'.
         boolean[] tableOfNums = new boolean[maxPrime + 1];
         Arrays.fill(tableOfNums, true);

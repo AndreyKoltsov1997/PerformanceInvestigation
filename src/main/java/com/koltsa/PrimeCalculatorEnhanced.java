@@ -26,7 +26,7 @@ public class PrimeCalculatorEnhanced {
         ExecutorService executors = Executors.newWorkStealingPool(cores);
 
         ConcurrentLinkedQueue<Integer> primeNumbersQueue = new ConcurrentLinkedQueue<>();
-        // Substract 2 from "maxPrime" since we cover the range [2; maxPrime]
+        // Subtract 2 from "maxPrime" since we cover the range [2; maxPrime]
         CountDownLatch latch = new CountDownLatch(maxPrime - 2);
         for (int i = 2; i <= maxPrime; i++) {
             // final efficiency requirement
@@ -46,7 +46,6 @@ public class PrimeCalculatorEnhanced {
         executors.shutdownNow();
         return Arrays.asList(primeNumbersQueue.toArray(new Integer[0]));
     }
-
 
     /**
      * Check if number is a prime number, e.g.: 2, 3, 5, 7, 11, ...

@@ -489,8 +489,8 @@ Results (raw output of JMH): [experiment-4-work-stealing-pool.txt](visualization
 | Algorithm | maxPrime - 1000 | maxPrime - 5000 | maxPrime - 10000 |
 | ------ | --- | --- | --- |
 | Original implementation, duration, ms/op, <br/> 95th percentile | 138.77 | 3339.5 | 13019.12 |
-| Enhancement - removal of redundant objects, duration, ms/op, <br/> 95th percentile | 1.25  | 3.47  | 6.72	 |
-| Enhancement - work stealing thread pool, ms/op, <br/> 95th percentile | 1.22  | 2.26 | 4.02 |
+| Enhancement - removal of redundant objects, duration, ms/op, <br/> 95th percentile | 1.25 (-99.09%)  | 3.47 (-99.90%) | 6.72 (-99.94%)	 |
+| Enhancement - work stealing thread pool, ms/op, <br/> 95th percentile | 1.22 (-99.12%)  | 2.26 (-99.93%) | 4.02 (-99.97%) |
 
 Looking at the results, the following observations could be made:
 * **Removal of redundant collections and prevention of spawning multiple exceptions as a return value had significant increased 
