@@ -515,9 +515,9 @@ The section includes comparison of performance experiments' results between each
 
 | Algorithm | maxPrime - 1000 | maxPrime - 10000 | maxPrime - 50000 |
 | ------ | --- | --- | --- |
-| Original implementation, duration, ms/op, <br/> 95th percentile | 131.27 | 508.454 | 1942.28 |
-| Enhanced implementation, duration, ms/op, <br/> 95th percentile | 1.36 (-98.96%) | 3.56 (-99.30%) | 39.66 (-97.96%)	 |
-| Sieve of Eratosthenes, duration, ms/op, <br/> 95th percentile | 0.01 (-99.99%) | 0.08 (-99.98%) | 0.59 (-99.96%) |
+| [Original implementation](src/main/java/com/koltsa/PrimeCalculator.java), duration, ms/op, <br/> 95th percentile | 131.27 | 508.454 | 1942.28 |
+| [Enhanced implementation](src/main/java/com/koltsa/PrimeCalculatorEnhanced.java), duration, ms/op, <br/> 95th percentile | 1.36 (-98.96%) | 3.56 (-99.30%) | 39.66 (-97.96%)	 |
+| [Sieve of Eratosthenes](src/main/java/com/koltsa/PrimeCalculatorSieveOfEratosthenes.java), duration, ms/op, <br/> 95th percentile | 0.01 (-99.99%) | 0.08 (-99.98%) | 0.59 (-99.96%) |
 
 Looking at the results, the following observations could be made:
 * **Differences in duration**. Within the used test environment, the most significant differences between original and enhanced 
