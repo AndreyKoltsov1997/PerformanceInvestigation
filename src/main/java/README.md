@@ -25,7 +25,13 @@
    6.2 [Baseline - benchmark of original implementation](#62-baseline---benchmark-of-original-implementation)<br/>
    6.3 [Elimination of excessive objects](#63-elimination-of-excessive-objects)<br/>
    6.4 [Change of concurrency level and management](#64-change-of-concurrency-level-and-management)<br/>
-7. [Visualization](#7-visualization)
+7. [Visualization](#7-visualization)<br/>
+8. [Observed issues](#8-observed-issues)<br/>
+   8.1 [MacBook Air M1 - thread limitations](#81-macbook-air-m1---thread-limitations)<br/>
+   8.2 [YourKit - allocation profiling issue](#82-yourkit---allocation-profiling-issue)<br/>
+9. [Troubleshooting](#9-troubleshooting)<br/>
+   9.1 [Missing /META-INF/BenchmarkLis @ JMH start up](#91-missing-meta-infbenchmarklist--jmh-start-up)<br/>
+
 
 # 1. Overview
 Investigating the performance of calculator of prime numbers using [YourKit](https://www.yourkit.com) Java profiler.
@@ -411,6 +417,16 @@ prime numbers up to given limit. It's based on sequential identification of numb
 
 
 # 6. Experiments
+
+Duration - 95th percentile
+
+| Algorithm | maxPrime - 1000, ms/op | maxPrime - 10000, ms/op | maxPrime - 50000, ms/op |
+| ------ | --- | --- | --- |
+| Original implementation | 131.27 | 508.454 | 1942.28 |
+| Enhanced implementation | 1.36 | 3.56 | 39.66	 |
+| Sieve of Eratosthenes | 0.01 | 0.08 | 0.59 |
+
+
 The section contains details about conducted experiments and their configurations.
 System.out.println (standard output) had been excluded from measurement, since the ways to provide the results may vary (serialization, send over the wire, etc.)
 
@@ -558,20 +574,9 @@ In order to simplify the comparison, automation for the visualization of JMH mea
 Please, refer to [visualization](visualization)
 
 
-# Thread count test
-Thread count test:
-```
-Thread count: 4041
-Thread count: 4043
-Thread count: 4045
-Thread count: 4047
-Thread count: 4049
-Thread count: 4051
-```
+# 8. Observed issues
 
-# Issues
-
-## MacBook Air M1 - thread limitations
+## 8.1 MacBook Air M1 - thread limitations
 
 On MacBook Air (M1, 2020), the original implementation of PrimeCalculator had been crashing in case `maxPrime` had been set to
 value higher than ~2000, while most of Windows laptops were capable of handling 250,000+ threads.
@@ -585,6 +590,15 @@ Error occurred during initialization of VM
 java.lang.OutOfMemoryError: unable to create new native thread
 
 Process finished with exit code 1
+```
+
+Using implemented [ThreadCountTest.java](src/main/java/com/koltsa/utilities/ThreadCountTest.java), it was determined that JMH on
+MacBook Air (M1, 2020) supports 4051 thread.
+```
+...
+Thread count: 4049
+Thread count: 4051
+...
 ```
 
 Looking at kernel configuration, we could see it could handle 10,000 threads.
@@ -643,14 +657,10 @@ sudo launchctl load /Library/LaunchDaemons/com.startup.sysctl.plist
 
 Unfortunately, it didn't work - the limit had stayed to be 2k even after the reboot.
 
-
-
-
 Alternative approach - try to run macOS could run in [server performance mode](https://apple.stackexchange.com/questions/373035/fix-fork-resource-temporarily-unavailable-on-os-x-macos/373036#373036)
 ```
 sudo nvram boot-args="serverperfmode=1 $(nvram boot-args 2>/dev/null | cut -f 2-)"
 ```
-
 
 Afterwards, the attempts to set `maxproc` to value higher than hard limit didn't return an error (unlike previous attempts), yet, the value
 remained consistent - 2000 processes. 
@@ -660,7 +670,7 @@ As an alternative, in order to be able to use hard limit (`maxproc` 2000 instead
 sudo /Applications/IntelliJ\ IDEA\ CE.app/Contents/MacOS/idea
 ```
 
-## YourKit - allocation profiling issue
+## 8.2 YourKit - allocation profiling issue
 Allocation profiling is started within YourKit, yet no related data is shown.
 ![img_11.png](img_11.png)
 
@@ -685,9 +695,9 @@ the following message appeared, yet application was still running:
 ![img_14.png](img_14.png)
 Allocation profiling with 60k and Thread.sleep(10000) in order to start allocation profiling
 
-# Troubleshooting
+# 9. Troubleshooting
 
-##  Missing /META-INF/BenchmarkList
+##  9.1 Missing /META-INF/BenchmarkList @ JMH start up
 The following error might occur while launching JMH benchmark:
 ```
 Exception in thread "main" java.lang.RuntimeException: ERROR: Unable to find the resource: /META-INF/BenchmarkList 
@@ -704,8 +714,3 @@ In order to fix that, please:
 $ cat gradle.properties
 org.gradle.java.home=<full path to JDK>
 ```
-
-
-# Further enhancements
-- It's possible to automate the profiling via CLI solutions, such as async profiler.
-- JMH results could be exported in a convenient file format, for example: CSV. We could leverage that for visualization purposes.

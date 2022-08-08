@@ -1,6 +1,6 @@
 package com.koltsa.utilities;
 
-public class ThreadSupportTest {
+public class ThreadCountTest {
 
     private static int threadCount = 0;
 
@@ -15,8 +15,8 @@ public class ThreadSupportTest {
                 @Override
                 public void run() {
                     synchronized (monitor) {
-                        ThreadSupportTest.threadCount++;
-                        System.out.println(String.format("Thread count: %d", ThreadSupportTest.threadCount++));
+                        ThreadCountTest.threadCount++;
+                        System.out.println(String.format("Thread count: %d", ThreadCountTest.threadCount++));
                     }
                     for (;;) {
                         // hold thread in active state
