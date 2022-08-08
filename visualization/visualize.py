@@ -21,8 +21,13 @@ class BenchmarkMeasurement:
 
 
 def __get_jmh_measurement_from_csv_line(csv_elements: list) -> BenchmarkMeasurement:
-    # "Benchmark","Mode","Threads","Samples","Score","Score Error (99,9%)","Unit","Param: maxPrimeNumber"
-
+    """
+    Retrieves JMH Measurement from its results provided as a CSV file.
+    Example of CSV Element: ...
+    ... "Benchmark","Mode","Threads","Samples","Score","Score Error (99,9%)","Unit","Param: maxPrimeNumber"
+    :param csv_elements: - line of CSV file read by CSV reader
+    :returns: BenchmarkMeasurement instance
+    """
     if len(csv_elements) < 5:
         return None
 
@@ -34,6 +39,7 @@ def __get_jmh_measurement_from_csv_line(csv_elements: list) -> BenchmarkMeasurem
 
 def __get_jmh_measurement_from_line(line: str) -> BenchmarkMeasurement:
     """
+    Retrieves JMH Measurement from its results provided as a plain text.
     Example of line: ...
     # CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p0.95   1000  sample   1,217   ms/op
     :param group: - test name
@@ -41,7 +47,7 @@ def __get_jmh_measurement_from_line(line: str) -> BenchmarkMeasurement:
     :returns: BenchmarkMeasurement instance
     """
     payload = line.split()
-    print(payload)
+    
     # 5 - minimal amount of elements within valuable payload
     if len(payload) < 5:
         return None
@@ -66,39 +72,29 @@ def __get_jmh_measurement_matching_criteria(measurements: list[BenchmarkMeasurem
     return samples[0]
 
 
-def __get_jmh_measurements_from_plain_txt_file(file_path: str) -> dict:
+def __get_jmh_measurements_from_reader_object(reader_obj: object, is_csv: bool):
     """
-    Parses file that contains JMH measurements.
-    :param file_path: - path to file with measurements
-    :returns: dictionary: <sample size> - <[measurements]
+    Retrieves JMH measurement from reader object.
+    :param reader_obj: - source for data, it might be plain text iterator, CSV file iterator, etc.
+    :param is_csv: - indicates if source file has CSV format
     """
-    data = defaultdict(list)
-
-    with open(file_path) as file:
-        data = __get_jmh_measurements_from_reader_object(reader_obj=file, is_csv=False)
-
-    return data
-
-
-def __get_jmh_measurements_from_reader_object(reader_obj, is_csv: bool):
     data = defaultdict(list)
 
     for line in reader_obj:
         try:
             jmh_measurement = __get_jmh_measurement_from_csv_line(line) if is_csv else __get_jmh_measurement_from_line(line)
-
         except Exception as e:
             print(f"Unable to parse line: {line} \n {e}")
             continue
         
         if not jmh_measurement:
             continue
-        print(f"debug jmh_measurement: {jmh_measurement.value}")
         data[jmh_measurement.sample_size].append(jmh_measurement)
 
     return data
 
-def __get_jmh_measurements_from_csv_file(file_path: str) -> dict:
+
+def __get_plottable_jmh_data_from_csv_file(file_path: str) -> dict:
     """
     Parses file that contains JMH measurements.
     :param file_path: - path to file with measurements
@@ -111,6 +107,19 @@ def __get_jmh_measurements_from_csv_file(file_path: str) -> dict:
         data = __get_jmh_measurements_from_reader_object(reader_obj=reader_obj, is_csv=True)
     return data
 
+
+def __get_plottable_jmh_data_from_plain_text_file(file_path: str) -> dict:
+    """
+    Parses file that contains JMH measurements.
+    :param file_path: - path to file with measurements
+    :returns: dictionary: <sample size> - <[measurements]
+    """
+    data = defaultdict(list)
+
+    with open(file_path) as file:
+        data = __get_jmh_measurements_from_reader_object(reader_obj=file, is_csv=False)
+
+    return data
 
 def plot_jmh_measurements(datasource_path: str, percentile: int, is_plain_text: bool = False) -> None:
     """
@@ -126,7 +135,9 @@ def plot_jmh_measurements(datasource_path: str, percentile: int, is_plain_text: 
     for file in os.listdir(folder):
         filename_decoded = file.decode('utf-8')
         filepath = f"{datasource_path}/{filename_decoded}"
-        fname_with_plottable_data[filename_decoded] = __get_jmh_measurements_from_plain_txt_file(filepath) if is_plain_text else __get_jmh_measurements_from_csv_file(filepath)
+        fname_with_plottable_data[filename_decoded] = (__get_plottable_jmh_data_from_plain_text_file(filepath) 
+                                                        if is_plain_text 
+                                                        else __get_plottable_jmh_data_from_csv_file(filepath))
     
     # -- Visualize Data
     for filename, sample_size_to_jmh_data in fname_with_plottable_data.items():
