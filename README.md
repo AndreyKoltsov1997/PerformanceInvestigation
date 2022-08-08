@@ -51,11 +51,20 @@ In order to simplify comparison between the builds, automation for [visualizatio
 - `(optional) YourKit Java Profiler` - visualization of CPU / allocation samples.
 - `(optional) Python 3` - visualization of results.
 
-# 1.2 How to run test
+# 1.2 How to run performance test
+In order to build the solution and execute performance test, please, run the following command:
 ```
-./gradlew jmh
+./gradlew clean build jmh
 ```
-The results would be available at `build/results/jmh/results.txt`.
+The results would be available in CSV format at `build/reports/benchmarks.csv'`. In order to change the format or file location,
+please, modify `jmh {...}` section of [build.gradle](build.gradle):
+```
+jmh {
+    ...
+    resultFormat = 'csv'
+    resultsFile = file('build/reports/benchmarks.csv')
+}
+```
 
 # 2. CPU and Memory analysis.
 
@@ -67,7 +76,9 @@ Each test had been executed locally on laptops that were available to me.
 * JVM Options. `-Xms4096m -Xmx4096m -Xss1024k`
 
 That had led to the need to make code changes for testing purposes:
-`MacBook Air (M1, 2020)` - JVM supports only 4,000 threads. Therefore, thread pool's capacity had been modified. (TODO: add link to CPU analysis with 1,500 threads) (TODO: add section with analysis)
+`MacBook Air (M1, 2020)` - JVM supports only 4,000 threads. Therefore, thread pool's capacity had been modified in some experiments 
+(see: [2.2 CPU analysis - 500,000 numbers, 1500 threads](#22-cpu-analysis---500000-numbers-1500-threads) and
+[8.1  MacBook Air M1 - thread limitations](#81-macbook-air-m1---thread-limitations))
 
 
 ## 2.2 CPU analysis - 500,000 numbers, 1500 threads
@@ -75,7 +86,8 @@ That had led to the need to make code changes for testing purposes:
 Prior to execution of the experiment, thread pool's capacity had been reduced. In original implementation, that was either 3000 or `maxPrime`, depends on 
 which one was higher. Such configuration had led to Java OOM within my Macbook Pro M1. 
 
-After multiple failed attempts to eliminate it (TODO: Add link to experiment), it was considered to reduce amount of threads within the pool down to 1500,
+After multiple failed attempts to eliminate it (see: [8.1 MacBook Air M1 - thread limitations](#81-macbook-air-m1---thread-limitations)), 
+it was considered to reduce amount of threads within the pool down to 1500,
 otherwise the amount of samples would be relatively small, which would make it harder to analyze the results of CPU and Heap profiling.
 ```
 public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
@@ -170,7 +182,7 @@ List<BigIntegerIterator> myFiller = Stream.generate(new Supplier<BigIntegerItera
         }).limit(maxPrime).collect(Collectors.toList());
 ```
 2. **Creation of Runnable tasks**. Given the nature of the application - concurrent determination of prime numbers - the creation
-of such objects is reasonable. Yet, as stated within CPU profiling (TODO: add reference), concurrency level and thread pool implementation
+of such objects is reasonable. Yet, as stated within CPU profiling ([2.3  CPU analysis - 50,000 numbers, 50,000 threads](#23-cpu-analysis---50000-numbers-50000-threads), concurrency level and thread pool implementation
 could be changed.
 3. Conversion of `String` to `Integer`. As stated in (1), there's no need to store integer value and its string representative separately.
 Thus, this part of the code could be eliminated.
@@ -190,7 +202,7 @@ private static void isPrime(List<Integer> primeNumbers, Integer candidate) throw
 }
 ```
 6. **Creation of `Exception` in order to create application workflow**. As stated in "CPU" section, that could be eliminated.
-As stated within CPU profiling (TODO: add reference),
+As stated within [2.2 CPU analysis - 500,000 numbers, 1500 threads](#22-cpu-analysis---500000-numbers-1500-threads),
    the use of Exceptions is redundant, especially considering performance affection it causes via additional CPU and Heap pressure.
    Generation of `Exceptions` instances could be replaced with returning a primitive `boolean` value from `isPrime(...)`.
 
