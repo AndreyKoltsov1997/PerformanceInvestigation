@@ -25,12 +25,17 @@
    6.2 [Baseline - benchmark of original implementation](#62-baseline---benchmark-of-original-implementation)<br/>
    6.3 [Elimination of excessive objects](#63-elimination-of-excessive-objects)<br/>
    6.4 [Change of concurrency level and management](#64-change-of-concurrency-level-and-management)<br/>
-7. [Visualization](#7-visualization)<br/>
+7. [Results](#7-results)<br/>
+7.1 [Visualization](#71-visualization)<br/>
+7.2 [Comparison of implemented algorithms](#72-comparison-of-implemented-algorithms)<br/>
+
 8. [Observed issues](#8-observed-issues)<br/>
    8.1 [MacBook Air M1 - thread limitations](#81-macbook-air-m1---thread-limitations)<br/>
    8.2 [YourKit - allocation profiling issue](#82-yourkit---allocation-profiling-issue)<br/>
 9. [Troubleshooting](#9-troubleshooting)<br/>
    9.1 [Missing /META-INF/BenchmarkLis @ JMH start up](#91-missing-meta-infbenchmarklist--jmh-start-up)<br/>
+
+
 
 
 # 1. Overview
@@ -41,9 +46,10 @@ The repository contains original code sample, YourKit's CPU and Allocation profi
 In order to compare different solutions, performance tests have been automated using [Java Microbenchmark Harness (JMH)](https://github.com/openjdk/jmh).
 In order to simplify comparison between the builds, automation for [visualization of JMH results](visualization) have been implemented.
 
+
 ## 1.1 Prerequisites
 
-- `JRE 8`
+- `JRE 8`. Please, note that JRE is required to use the solution itself, yet, performance test automation (Java Microbenchmark Harness) requires `JDK`.
 - `(optional) YourKit Java Profiler` - visualization of CPU / allocation samples.
 - `(optional) Python 3` - visualization of results.
 
@@ -52,9 +58,6 @@ In order to simplify comparison between the builds, automation for [visualizatio
 ./gradlew jmh
 ```
 The results would be available at `build/results/jmh/results.txt`.
-
-# 1. Set up 
-YourTrack had been used via Intellij IDEA. The IntelliJ's run method had been excluded from profiling.
 
 # 2. CPU and Memory analysis.
 
@@ -418,15 +421,6 @@ prime numbers up to given limit. It's based on sequential identification of numb
 
 # 6. Experiments
 
-Duration - 95th percentile
-
-| Algorithm | maxPrime - 1000, ms/op | maxPrime - 10000, ms/op | maxPrime - 50000, ms/op |
-| ------ | --- | --- | --- |
-| Original implementation | 131.27 | 508.454 | 1942.28 |
-| Enhanced implementation | 1.36 | 3.56 | 39.66	 |
-| Sieve of Eratosthenes | 0.01 | 0.08 | 0.59 |
-
-
 The section contains details about conducted experiments and their configurations.
 System.out.println (standard output) had been excluded from measurement, since the ways to provide the results may vary (serialization, send over the wire, etc.)
 
@@ -568,11 +562,34 @@ CalculatorBenchmark.runEnhancedBenchmark:runEnhancedBenchmark�p1.00           
 CalculatorBenchmark.runOriginalImplementation                                            1000  sample    410    122,600 �    1,715  ms/op
 ```
 
-# 7. Visualization
+# 7. Results
+
+## 7.1 Visualization
 In order to simplify the comparison, automation for the visualization of JMH measurements had been implemented.
 ![img_10.png](img_10.png)
 Please, refer to [visualization](visualization)
 
+# 7.2 Comparison of implemented algorithms
+
+The section includes comparison of performance experiments' results between each implemented algorithm.
+
+![img_16.png](img_16.png)
+
+| Algorithm | maxPrime - 1000 | maxPrime - 10000 | maxPrime - 50000 |
+| ------ | --- | --- | --- |
+| Original implementation, duration, ms/op, <br/> 95th percentile | 131.27 | 508.454 | 1942.28 |
+| Enhanced implementation, duration, ms/op, <br/> 95th percentile | 1.36 (-98.96%) | 3.56 (-99.30%) | 39.66 (-97.96%)	 |
+| Sieve of Eratosthenes, duration, ms/op, <br/> 95th percentile | 0.01 (-99.99%) | 0.08 (-99.98%) | 0.59 (-99.96%) |
+
+Looking at the results, the following observations could be made:
+* **Differences in duration**. Within the used test environment, the most significant differences between original and enhanced 
+solutions had been observed with 10,000 as max prime number - 142 times decrease (-99.30%), while 1000 and 50,000 shown 100-times (-99.30%)
+and 50-times (-97.96%) decrease respectfully.
+* **Comparison of algorithms - concurrent vs single-threaded**. Within the used environment, single-threaded algorithm - 
+`Sieve of Eratosthenes` - shown the best performance - uo to 3292-times decrease (-99.96%) in duration.
+
+As a conclusion, we could state that the efficient use of resources (CPU / RAM) and their sharing across threads is important, 
+yet the most significant changes in performance could be achieved by designing a sufficient algorithm.
 
 # 8. Observed issues
 
