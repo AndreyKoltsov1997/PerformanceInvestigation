@@ -1,0 +1,27 @@
+Andrey, [6 Aug 2022, 16:15:10]:
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.00            1000  sample            93,061             ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.50            1000  sample           123,077             ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.90            1000  sample           135,476             ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.95            1000  sample           138,766             ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.99            1000  sample           149,336             ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.999           1000  sample           152,568             ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.9999          1000  sample           152,568             ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p1.00            1000  sample           152,568             ms/op
+CalculatorBenchmark.runOriginalImplementation                                            5000  sample     27   2138,435 �  494,929  ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.00            5000  sample           667,943             ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.50            5000  sample          2210,398             ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.90            5000  sample          3135,662             ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.95            5000  sample          3339,505             ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.99            5000  sample          3368,026             ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.999           5000  sample          3368,026             ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.9999          5000  sample          3368,026             ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p1.00            5000  sample          3368,026             ms/op
+CalculatorBenchmark.runOriginalImplementation                                           10000  sample      9   8719,026 � 4830,375  ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.00           10000  sample          3066,036             ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.50           10000  sample          9378,464             ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.90           10000  sample         13019,120             ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.95           10000  sample         13019,120             ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.99           10000  sample         13019,120             ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.999          10000  sample         13019,120             ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p0.9999         10000  sample         13019,120             ms/op
+CalculatorBenchmark.runOriginalImplementation:runOriginalImplementation�p1.00           10000  sample         13019,120             ms/op
