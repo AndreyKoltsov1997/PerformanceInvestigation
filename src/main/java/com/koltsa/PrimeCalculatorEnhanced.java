@@ -26,7 +26,7 @@ public class PrimeCalculatorEnhanced {
         ExecutorService executors = Executors.newWorkStealingPool(cores);
 
         ConcurrentLinkedQueue<Integer> primeNumbersQueue = new ConcurrentLinkedQueue<>();
-        // "maxprime-2" since we start from 2
+        // Substract 2 from "maxPrime" since we cover the range [2; maxPrime]
         CountDownLatch latch = new CountDownLatch(maxPrime - 2);
         for (int i = 2; i <= maxPrime; i++) {
             // final efficiency requirement

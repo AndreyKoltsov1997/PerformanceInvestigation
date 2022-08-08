@@ -68,6 +68,7 @@ jmh {
 ```
 
 # 2. CPU and Memory analysis.
+The section contains details about conducted performance analysis of original implementation of prime numbers' calculator.
 
 ## 2.1 Execution environment
 

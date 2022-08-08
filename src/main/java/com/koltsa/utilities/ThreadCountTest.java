@@ -11,20 +11,17 @@ public class ThreadCountTest {
     public static void checkHowManyThreadsJvmCouldHave() {
         Object monitor = new Object();
         for (;;) {
-            new Thread(new Runnable() {
-                @Override
-                public void run() {
-                    synchronized (monitor) {
-                        ThreadCountTest.threadCount++;
-                        System.out.println(String.format("Thread count: %d", ThreadCountTest.threadCount++));
-                    }
-                    for (;;) {
-                        // hold thread in active state
-                        try {
-                            Thread.sleep(1000);
-                        } catch (InterruptedException e) {
-                            e.printStackTrace();
-                        }
+            new Thread(() -> {
+                synchronized (monitor) {
+                    ThreadCountTest.threadCount++;
+                    System.out.printf("Thread count: %d%n", ThreadCountTest.threadCount++);
+                }
+                for (;;) {
+                    // hold thread in active state
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
                     }
                 }
             }).start();

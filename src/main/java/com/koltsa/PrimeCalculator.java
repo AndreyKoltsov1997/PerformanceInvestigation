@@ -1,9 +1,6 @@
 // Moved to package to simplify execution
 package com.koltsa;
 
-import org.openjdk.jmh.runner.RunnerException;
-
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
@@ -25,32 +22,14 @@ class BigIntegerIterator {
     }
 
     Integer getContain() {
-        return Math.max(Integer.decode(contain.get(0)),reference.get(0));
+        return Math.max(Integer.decode(contain.get(0)), reference.get(0));
     }
 }
 
 public class PrimeCalculator {
-    public static void main(String[] args) throws InterruptedException, IOException, RunnerException {
-        System.out.println(PrimeCalculatorSieveOfEratosthenes.getPrimes(Integer.parseInt(args[0])));
-//        ThreadSupportTest.checkHowManyThreadsJvmCouldHave();
-//        Options opt = new OptionsBuilder()
-//                // -- benchmark that'd be ran
-//                .include(CalculatorBenchmark.class.getSimpleName() + ".*")
-//                .warmupIterations(1)
-//                .mode(Mode.SampleTime)
-//                .forks(1)
-//                .build();
-//
-//        new Runner(opt).run();
 
-//        PrimeCalculatorEnhanced.getPrimes(Integer.parseInt(args[0]));
-//        System.out.println(PrimeCalculator.getPrimes(Integer.parseInt(args[0])));
-//        CalculatorBenchmark benchmark = new CalculatorBenchmark();
-//        benchmark.init();
-        return;
-//        for (Integer prime : getPrimes(Integer.parseInt(args[0]))) {
-//            System.out.println(prime);
-//        }
+    public static void main(String[] args) {
+        System.out.println(PrimeCalculatorSieveOfEratosthenes.getPrimes(Integer.parseInt(args[0])));
     }
 
     public static List<Integer> getPrimes(int maxPrime) throws InterruptedException {
