@@ -489,9 +489,8 @@ less contention.
 # 7. Results
 
 ## 7.1 Visualization
-In order to simplify the comparison, automation for the visualization of JMH measurements had been implemented.
-
-Please, refer to [visualization](visualization)
+In order to simplify the comparison, automation for the visualization of JMH measurements had been implemented. <br/>
+Please, refer to [visualization](visualization).
 
 # 7.2 Comparison of implemented algorithms
 
